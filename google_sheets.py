@@ -42,7 +42,8 @@ def create_student_if_missing(student_id, nickname="", pronoun_code="", tone="Re
         "CurrentGoal": "",
         "CurrentSuccessMeasures": "",
         "CurrentGoalSetDate": "",
-        "GoalRange": ""  # will be inferred later
+        "GoalRange": "",  # will be inferred later
+        "BackgroundInfo": ""  # will be inferred later
     }
     row = [row_data.get(col, "") for col in headers]
     sheet.append_row(row)
@@ -67,7 +68,7 @@ def add_goal_history_entry(entry_dict):
     sheet.append_row(row)
 
 # --- Update the student’s current goal and related info ---
-def update_student_current_goal(student_id, new_goal, new_success_measures, set_date, goal_range=None):
+def update_student_current_goal(student_id, new_goal, new_success_measures, set_date, goal_range=None, background_info=None):
     sheet = get_sheet("Students")
     records = sheet.get_all_records()
     for i, row in enumerate(records):
@@ -76,7 +77,10 @@ def update_student_current_goal(student_id, new_goal, new_success_measures, set_
             sheet.update_cell(row_num, 5, new_goal)               # CurrentGoal
             sheet.update_cell(row_num, 6, new_success_measures)   # CurrentSuccessMeasures
             sheet.update_cell(row_num, 7, set_date)               # CurrentGoalSetDate
-            if goal_range:
+            if goal_range is not None:
                 sheet.update_cell(row_num, 8, goal_range)         # GoalRange
+            if background_info is not None:
+                sheet.update_cell(row_num, 9, background_info)    # BackgroundInfo
             return True
     return False
+
