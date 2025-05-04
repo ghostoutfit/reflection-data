@@ -84,3 +84,8 @@ def update_student_current_goal(student_id, new_goal, new_success_measures, set_
             return True
     return False
 
+# -- goal history --
+def get_goal_history_for_student(student_id):
+    sheet = get_sheet("GoalHistory")
+    records = sheet.get_all_records()
+    return [row for row in records if str(row["StudentID"]).strip() == str(student_id).strip()]
