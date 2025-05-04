@@ -1,0 +1,95 @@
+goals:
+  - text: "Goal 1: Every time we are asked to turn and talk, I will say one thing on topic to my partner."
+    category: "partner"
+    difficulty: easy
+
+  - text: "Goal 2: Every time we talk as a group, I will contribute at least 1 idea or ask 1 question."
+    category: "group"
+    difficulty: moderate
+
+  - text: "Goal 3: Raise my hand and make contributions or ask questions."
+    category: "whole_class"
+    difficulty: moderate
+
+  - text: "Goal 4: Give my ideas to someone else, then encourage others to share them out."
+    category: "peer_support"
+    difficulty: easy
+
+  - text: "Goal 5: Ask people what they think, and use '3 before me'"
+    category: "discussion_norm"
+    difficulty: moderate
+
+  - text: "Goal 6: Ask questions to the teacher or small group when I get lost."
+    category: "self_advocacy"
+    difficulty: easy
+
+  - text: "Goal 7: Use the phrase, 'I am only 20% sure…' to let people know I am taking a risk."
+    category: "risk_taking"
+    difficulty: stretch
+
+  - text: "Goal 8: Say something on topic to my shoulder partner, and ask them to share it for me."
+    category: "low_risk"
+    difficulty: easy
+
+  - text: "Goal 9: Stay engaged in on topic conversation with my group members at every opportunity."
+    category: "engagement"
+    difficulty: stretch
+
+warmup_prompts:
+  humanizing:
+    - "What’s something you felt proud of recently?"
+    - "What are you looking forward to this week?"
+    - "What’s something that surprised you today?"
+    - "What's one time this week where you perservered through setbacks?"
+    - "What’s one moment that made you smile this week?"
+
+  one_word:
+    - Chill
+    - Tired
+    - Stressed
+    - Fired up
+    - Meh
+    - Not in the mood
+    - Hopeful
+    - Frustrated
+    - Focused
+    - Zoning out
+    - Quiet
+    - Distracted
+    - Nervous
+    - Confident
+    - Curious
+    - Burned out
+    - Energized
+    - Ready
+
+encouragements:
+  success:
+    - "Nice work following through on your goal!"
+    - "That kind of consistency builds confidence."
+    - "Looks like you're building a strong habit."
+    - "Keep showing up like that—it's paying off."
+    - "Great job sticking with it today."
+
+  struggle:
+    - "Missing a goal is part of getting better."
+    - "Even trying counts—don’t forget that."
+    - "You’re not alone—lots of people slip sometimes."
+    - "This is how growth looks: imperfect but steady."
+    - "Let's take what happened today and try again."
+
+gpt_prompts:
+  reflect_on_goal: |
+    You are a warm, nonjudgmental reflection partner helping a high school student think about their class participation goal. 
+    Ask one follow-up question if needed, or summarize what the student shared. 
+    Keep your tone relaxed, brief, and supportive. Don’t give advice—just help them think clearly.
+
+  goal_setter: |
+    You are a goal-setting coach for students who want to get better at contributing in class. 
+    Offer 3 small, doable goal options for next class. 
+    Make sure at least one feels easy even for someone who’s quiet or unsure. Keep it simple and encouraging.
+
+config:
+  max_days_since_goal: 4
+  allow_custom_goals: true
+  show_goal_twist_options: true
