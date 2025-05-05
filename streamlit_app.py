@@ -320,6 +320,9 @@ elif st.session_state.step == "reflect_on_goal":
     st.markdown("### Reflect on Your Goal")
     st.markdown(f"**Goal:** {goal_info['text']}")
     st.markdown(f"**Set On:** {'Today' if goal_info['source'] == 'manual' else goal_info['set_date']}")
+    if goal_info["source"] != "manual":
+        success = st.session_state.student.get("CurrentSuccessMeasures", "")
+        st.markdown(f"**Success on this goal looks like:** {success}")
 
     st.markdown("How would you rate your progress toward this goal?")
     goal_achievement = st.radio("", [
@@ -341,13 +344,13 @@ elif st.session_state.step == "reflect_on_goal":
     interpretation = summary_map[score_value]
     reflection = st.text_area("What helped or got in the way?")
 
-    if st.button("Submit Reflection"):
+    if st.button("Submit Reflection", key="submit_reflection1"):    # Don't know why we need two of these, but we do?
         st.session_state.latest_reflection = reflection  # ✅ Store it for later
         add_goal_history_entry({
             "StudentID": st.session_state.student_id,
             "GoalSetDate": goal_info["set_date"],
             "GoalText": goal_info["text"],
-            "SuccessMeasure": "[manual goal]" if goal_info["source"] == "manual" else st.session_state.student.get("CurrentSuccessMeasures", ""),
+            "SuccessMeasures": "[manual goal]" if goal_info["source"] == "manual" else st.session_state.student.get("CurrentSuccessMeasures", ""),
             "OutcomeReflection": reflection,
             "GoalAchievement": score_value,
             "InterpretationSummary": interpretation,
@@ -381,7 +384,7 @@ elif st.session_state.step == "reflect_on_goal":
                 return "Summary unavailable"
 
         # --- After user submits reflection and before motivation check ---
-        if st.button("Submit Reflection"):
+        if st.button("Submit Reflection", key="submit_reflection2"):
             st.session_state.latest_reflection = reflection
             add_goal_history_entry({
                 "StudentID": st.session_state.student_id,
@@ -507,7 +510,7 @@ elif st.session_state.step == "chatbot_motivation":
                 )
                 reply = response.choices[0].message.content.strip()
             except Exception as e:
-                reply = "⚠️ There was a problem talking to the motivation coach. Want to try again?"
+                reply = "⚠️ There was a problem talking to the goal-setting chat bot. Want to try again?"
 
             # --- Update state and rerun ---
             st.session_state.chat_history.append({
@@ -539,7 +542,7 @@ elif st.session_state.step == "set_contribution_goal":
 
     goal_options = get_goal_text_list(cfg)
     final_goal = st.selectbox("Choose your goal:", goal_options)
-    measure = st.text_area("How will you know you’re succeeding?")
+    measure = st.text_area("What will it look like when you're succeeding?")
 
     if st.button("Set Goal"):
         update_student_current_goal(
