@@ -68,6 +68,30 @@ def get_motivation_case(goal_history, current_goal, current_reflection, cfg):
 
     return None
 
+def choose_next_step_from_goal_history(student_id, current_goal, current_reflection, goal_date, cfg, goal_source="app"):
+    history = get_goal_history_for_student(student_id)
+    print(f"[DEBUG step routing] Student {student_id} has {len(history)} goal history entries.")
+    
+    recent = (
+        goal_date and
+        (date.today() - datetime.strptime(goal_date, "%Y-%m-%d").date()).days
+        <= get_config_value(cfg, "max_days_since_goal", 4)
+    )
+
+    if len(history) < 1:
+        st.session_state.motivation_case = "motivation_onboard_intro"
+        st.session_state.step = "chatbot_motivation"
+    elif recent:
+        st.session_state.goal_to_reflect = {
+            "text": current_goal,
+            "set_date": goal_date,
+            "source": goal_source
+        }
+        st.session_state.step = "reflect_on_goal"
+    else:
+        st.session_state.step = "check_manual_goal"
+
+
 # --- GPT summarizer fallback ---
 def summarize_background_response(response_text):
     prompt = (
@@ -273,21 +297,14 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
                 <= get_config_value(cfg, "max_days_since_goal", 4)
             )
 
-            history = get_goal_history_for_student(st.session_state.student_id)
-            if len(history) <= 1:
-                st.session_state.motivation_case = "motivation_onboard_intro"
-                st.session_state.step = "chatbot_motivation"
-            elif recent:
-                st.session_state.goal_to_reflect = {
-                    "text": student["CurrentGoal"],
-                    "set_date": student["CurrentGoalSetDate"],
-                    "source": "app"
-                }
-                st.session_state.step = "reflect_on_goal"
-            else:
-                st.session_state.step = "check_manual_goal"
-
-            st.rerun()
+            choose_next_step_from_goal_history(
+                student_id=st.session_state.student_id,
+                current_goal=student["CurrentGoal"],
+                current_reflection=summary_input,
+                goal_date=student["CurrentGoalSetDate"],
+                cfg=cfg,
+                goal_source="app"
+            )
 
 
 
@@ -508,6 +525,17 @@ elif st.session_state.step == "chatbot_motivation":
         st.markdown(f"**Background info from previous reflections includes:** {background}")
         st.markdown("---")
     
+         
+   # Recalculate motivation case for the demo record
+    demo_history = get_goal_history_for_student(st.session_state.student_id)
+    st.session_state.motivation_case = get_motivation_case(
+        goal_history=demo_history,
+        current_goal=random_entry["GoalText"],
+        current_reflection=random_entry["OutcomeReflection"],
+        cfg=cfg
+    )
+    print(f"[DEMO] Motivation case selected: {st.session_state.motivation_case}")
+    
     st.header("Reflect with an AI:")
     st.markdown("I am designed to help you reflect on your goals, and set new goals that help you succeed.")
     
@@ -540,13 +568,14 @@ elif st.session_state.step == "chatbot_motivation":
             user_input_clean = user_input.strip()
 
             # 👇 Add this line to log to the terminal
+            history = get_goal_history_for_student(st.session_state.student_id)
+            print(f"[DEBUG] Student {st.session_state.student_id} has {len(history)} goal history entries.")
             print(f"[GPT Prompt Case] Using prompt case: {case}")
             print(f"[Prompt Text] {prompt_instructions[:200]}...")  # optional: only show beginning for brevity
 
             length_pref_map = {
-                "short": "Respond briefly, in 2–3 brief sentences, using simpler words.",
-                "medium": "Respond with moderate detail, around 2–4 sentences.",
-                "long": "Take your time and elaborate fully, up to 5–7 sentences."
+                "short": "Respond briefly, in 2–3 brief sentences, using simple words.",
+                "long": "Respond with moderate detail, around 2–4 sentences.",
             }
             length_pref = length_pref_map.get(length_label, "")
 
@@ -587,9 +616,6 @@ elif st.session_state.step == "chatbot_motivation":
             if st.button("Short"):
                 handle_chat_reply("short")
         with col2:
-            if st.button("Medium"):
-                handle_chat_reply("medium")
-        with col3:
             if st.button("Long"):
                 handle_chat_reply("long")
 
@@ -625,6 +651,21 @@ elif st.session_state.step == "set_contribution_goal":
             new_success_measures=measure,
             set_date=str(date.today())
         )
+
+        # Check if this is the first goal ever
+        history = get_goal_history_for_student(st.session_state.student_id)
+        if len(history) == 0:
+            # Log initial goal into GoalHistory
+            add_goal_history_entry({
+                "StudentID": st.session_state.student_id,
+                "GoalSetDate": today,
+                "Goal": final_goal,
+                "SuccessMeasures": measure,
+                "OutcomeReflection": "[first goal]",
+                "GoalAchievement": "[first goal]",
+                "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
+            })
+
         st.success("New goal saved.")
         st.session_state.step = "done"
         st.rerun()
