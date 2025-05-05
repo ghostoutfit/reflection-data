@@ -16,7 +16,8 @@ from google_sheets import (
     create_student_if_missing,
     add_goal_history_entry,
     update_student_current_goal,
-    get_goal_history_for_student
+    get_goal_history_for_student,
+    get_sheet
 )
 
 from openai import OpenAI
@@ -126,7 +127,12 @@ if st.session_state.step == "enter_id":
                 else:
                     st.error("Student ID already exists.")
 
-
+# --- Demo / Test mode to try out AI conversation
+if st.session_state.get("step") != "chatbot_motivation":
+    if st.button("OR Try AI Chat Demo with sample goal data"):
+        st.session_state.step = "chatbot_motivation"
+        st.session_state.goal_to_reflect = {"source": "demo"}  # triggers special behavior
+        st.rerun()
 
 
 # --- STEP 1: WARMUP ---
@@ -461,46 +467,104 @@ elif st.session_state.step == "check_manual_goal":
 
 #  --- Chatbot motivational step---
 elif st.session_state.step == "chatbot_motivation":
+
+    goal_info = st.session_state.get("goal_to_reflect", {})
+
+    # Engage Demo Mode to try out AI chat    
+    if goal_info.get("source") == "demo":
+        # Only choose and store a random entry once
+        if "demo_loaded" not in st.session_state:
+            sheet = get_sheet("GoalHistory")
+            records = sheet.get_all_records()
+            import random
+            random_entry = random.choice(records)
+
+            st.session_state.random_demo_entry = random_entry  # ✅ store the row persistently
+            st.session_state.demo_loaded = True
+        else:
+            random_entry = st.session_state.random_demo_entry  # ✅ retrieve the stored row
+
+        # Set student info
+        st.session_state.student_id = str(random_entry["StudentID"])
+        student_record = get_student_info(st.session_state.student_id)
+        student_record["BackgroundInfo"] = random_entry.get("BackgroundInfo", "")
+        st.session_state.student = student_record
+
+        # Set goal and reflection info
+        st.session_state.goal_to_reflect = {
+            "text": random_entry["GoalText"],
+            "set_date": random_entry["GoalSetDate"],
+            "source": "demo"
+        }
+        st.session_state.latest_reflection = random_entry.get("OutcomeReflection", "")
+
+        # Display the summary to the user
+        nickname = student_record.get("Nickname", "[unknown]")
+        recent_goal = random_entry.get("GoalText", "[no goal yet]")
+        background = random_entry.get("BackgroundInfo", "[none]")
+
+        st.markdown(f"**Your name is:** {nickname}")
+        st.markdown(f"**Your most recent goal is:** {recent_goal}")
+        st.markdown(f"**Background info from previous reflections includes:** {background}")
+        st.markdown("---")
+    
     st.header("Reflect with an AI:")
-    st.markdown("I am designed to help you reflect on your goals. What should I keep in mind today? (If nothing, click Send.)")
+    st.markdown("I am designed to help you reflect on your goals, and set new goals that help you succeed.")
+    
+
     # Show chat history
     for turn in st.session_state.chat_history:
+        if st.session_state.chat_turn_count != 1:
+            st.markdown(f"**You:** {turn['user']}")
         st.markdown(f"**AI:** {turn['ai']}")
-        st.markdown(f"**You:** {turn['user']}")
 
+
+    
     # If fewer than 3 turns, continue conversation
     if st.session_state.chat_turn_count < 3:
-        user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
+        
+        if st.session_state.chat_turn_count == 0:
+            user_input = ""
+        else:
+            user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
 
-        if st.button("Send"):
-            # --- Build dynamic system message using context ---
+        st.markdown("#### Choose how long you want my response to be:")
+        col1, col2, col3 = st.columns(3)
+
+        def handle_chat_reply(length_label):
             case = st.session_state.get("motivation_case", "motivation_onboard_intro")
             prompt_instructions = get_gpt_prompt(cfg, case)
-
             background = st.session_state.student.get("BackgroundInfo", "")
             goal = st.session_state.get("goal_to_reflect", {}).get("text", "[No goal yet]")
             reflection = st.session_state.get("latest_reflection", "")
-            user_input = user_input.strip()
-            
+            user_input_clean = user_input.strip()
+
+            # 👇 Add this line to log to the terminal
+            print(f"[GPT Prompt Case] Using prompt case: {case}")
+            print(f"[Prompt Text] {prompt_instructions[:200]}...")  # optional: only show beginning for brevity
+
+            length_pref_map = {
+                "short": "Respond briefly, in 2–3 brief sentences, using simpler words.",
+                "medium": "Respond with moderate detail, around 2–4 sentences.",
+                "long": "Take your time and elaborate fully, up to 5–7 sentences."
+            }
+            length_pref = length_pref_map.get(length_label, "")
+
             system_message = (
                 "You are a helpful, encouraging motivation coach for high school students.\n\n"
                 f"The student has shared this about themselves: {background}\n"
                 f"The goal they reflected on was: {goal}\n"
                 f"This is what they said about how it went: {reflection}\n\n"
+                f"{length_pref}\n\n"
                 f"Now continue the conversation. {prompt_instructions}"
             )
 
-            # --- Construct message history with system + prior turns ---
             full_thread = [{"role": "system", "content": system_message}]
-
             for turn in st.session_state.chat_history:
                 full_thread.append({"role": "assistant", "content": turn["ai"]})
                 full_thread.append({"role": "user", "content": turn["user"]})
+            full_thread.append({"role": "user", "content": user_input_clean})
 
-            # Add current user input
-            full_thread.append({"role": "user", "content": user_input})
-
-            # --- GPT Completion ---
             try:
                 response = openai_client.chat.completions.create(
                     model="gpt-4",
@@ -509,16 +573,26 @@ elif st.session_state.step == "chatbot_motivation":
                     max_tokens=200
                 )
                 reply = response.choices[0].message.content.strip()
-            except Exception as e:
-                reply = "⚠️ There was a problem talking to the goal-setting chat bot. Want to try again?"
+            except Exception:
+                reply = "⚠️ There was a problem talking to the goal-setting chatbot. Want to try again?"
 
-            # --- Update state and rerun ---
             st.session_state.chat_history.append({
-                "user": user_input,
+                "user": user_input_clean,
                 "ai": reply
             })
             st.session_state.chat_turn_count += 1
             st.rerun()
+
+        with col1:
+            if st.button("Short"):
+                handle_chat_reply("short")
+        with col2:
+            if st.button("Medium"):
+                handle_chat_reply("medium")
+        with col3:
+            if st.button("Long"):
+                handle_chat_reply("long")
+
 
 
     else:
