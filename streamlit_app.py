@@ -133,9 +133,50 @@ if st.session_state.step == "enter_id":
 if st.session_state.step == "warmup" and "student_id" in st.session_state:
     student = st.session_state.student
     nickname = student.get("Nickname", "there")
-    st.markdown(f"👋 Hey **{nickname}**, we'll start today's reflection with a quick check-in. "
-                "This helps provide background so I can better help you reflect.")
-    st.markdown("---")
+    
+    # First-time users: collect deeper background info
+    goal_history = get_goal_history_for_student(st.session_state.student_id)
+    if len(goal_history) == 0 and "background_collected" not in st.session_state:
+        st.header(f"Hi {nickname}, I’d like to get to know you a bit.")
+
+        st.markdown(
+            "🧠 *It’ll be easier to help make your reflections meaningful if I know something about what you care about.*"
+        )
+        bio_input = st.text_area("What do you want me to know about you?")
+
+        if st.button("Continue"):
+            # Store the student’s own words, unaltered
+            raw_bio = bio_input.strip()
+            existing_info = student.get("BackgroundInfo", "")
+            combined_info = f"{existing_info} | {raw_bio}".strip(" |")
+
+            if not existing_info.strip():
+                update_student_current_goal(
+                    student_id=st.session_state.student_id,
+                    new_goal=student.get("CurrentGoal", ""),
+                    new_success_measures=student.get("CurrentSuccessMeasures", ""),
+                    set_date=student.get("CurrentGoalSetDate", str(date.today())),
+                    background_info=raw_bio  # ⬅️ student’s own answer, not a summary
+                )
+                # Update local session copy with fresh data from sheet
+                st.session_state.student = get_student_info(st.session_state.student_id)
+
+
+
+            st.session_state.background_info = combined_info
+            st.session_state.latest_reflection = bio_input
+            st.session_state.background_collected = True  # prevent re-asking
+            st.rerun()
+
+        st.stop()  # Hold until they finish this input
+    
+    
+    if len(goal_history) == 0:
+        st.markdown(f"We'll start every reflection with a quick check-in. "
+                    "This helps provide background so I can better help you reflect.")
+    else:
+        st.markdown(f"👋 Hey **{nickname}**, we'll start today's reflection with a quick check-in. "
+                    "This helps provide background so I can better help you reflect.")
     st.subheader("Warm Up / Check-In")
 
     if "current_warmup_prompt" not in st.session_state:
@@ -150,8 +191,8 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
     st.markdown(f"**{st.session_state.current_warmup_prompt}**")
     response = st.text_input("Your response:")
 
-    st.markdown("---")
-    st.markdown("Or choose one or more words that fit your vibe today:")
+    st.markdown("AND / OR")
+    st.markdown("Choose one or more words that fit how you're feeling today:")
 
     cols = st.columns(len(st.session_state.one_word_options))
     for i, word in enumerate(st.session_state.one_word_options):
@@ -170,21 +211,79 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
     colA, colB = st.columns([1, 1])
     with colA:
         if st.button("Continue"):
-            summary_input = response if response else ", ".join(st.session_state.selected_words)
-            summary = summarize_background_response(summary_input)
-            existing_info = student.get("BackgroundInfo", "")
-            combined_info = f"{existing_info} | {summary}".strip(" |")
-            st.session_state.background_info = combined_info
+            summary_input = ""
+            if response:
+                summary_input += response.strip()
+            if st.session_state.selected_words:
+                words = ", ".join(st.session_state.selected_words)
+                if summary_input:
+                    summary_input += f" (Also described themselves as: {words})"
+                else:
+                    summary_input = f"Described themselves as: {words}"
 
-            # Store warmup as latest reflection (used in onboarding GPT)
             st.session_state.latest_reflection = summary_input
 
-            # Check if onboarding GPT should be triggered
-            goal_history = get_goal_history_for_student(st.session_state.student_id)
-            if len(goal_history) <= 1:
+            existing_info = student.get("BackgroundInfo", "").strip()
+
+            if not existing_info:
+                # First-time response: store raw text
+                st.session_state.background_info = summary_input
+                update_student_current_goal(
+                    student_id=st.session_state.student_id,
+                    new_goal=student.get("CurrentGoal", ""),
+                    new_success_measures=student.get("CurrentSuccessMeasures", ""),
+                    set_date=student.get("CurrentGoalSetDate", str(date.today())),
+                    background_info=summary_input
+                )
+            else:
+                # Pull past reflections from GoalHistory
+                history = get_goal_history_for_student(st.session_state.student_id)
+                past_reflections = [entry.get("BackgroundInfo", "") for entry in history if entry.get("BackgroundInfo", "").strip()]
+
+                # Combine everything into one string
+                combined_input = " | ".join([existing_info] + past_reflections + [summary_input])
+
+                # Summarize with GPT
+                background_summary = summarize_background_response(combined_input)
+
+                # Save back to Students sheet
+                st.session_state.background_info = background_summary
+                update_student_current_goal(
+                    student_id=st.session_state.student_id,
+                    new_goal=student.get("CurrentGoal", ""),
+                    new_success_measures=student.get("CurrentSuccessMeasures", ""),
+                    set_date=student.get("CurrentGoalSetDate", str(date.today())),
+                    background_info=background_summary
+                )
+
+            # Refresh local student record for use in GPT
+            st.session_state.student = get_student_info(st.session_state.student_id)
+
+            # Continue with next step logic (chatbot onboarding, recent goal, etc.)
+            goal_date = student["CurrentGoalSetDate"]
+            recent = (
+                goal_date and
+                (date.today() - datetime.strptime(goal_date, "%Y-%m-%d").date()).days
+                <= get_config_value(cfg, "max_days_since_goal", 4)
+            )
+
+            history = get_goal_history_for_student(st.session_state.student_id)
+            if len(history) <= 1:
                 st.session_state.motivation_case = "motivation_onboard_intro"
                 st.session_state.step = "chatbot_motivation"
-                st.rerun()
+            elif recent:
+                st.session_state.goal_to_reflect = {
+                    "text": student["CurrentGoal"],
+                    "set_date": student["CurrentGoalSetDate"],
+                    "source": "app"
+                }
+                st.session_state.step = "reflect_on_goal"
+            else:
+                st.session_state.step = "check_manual_goal"
+
+            st.rerun()
+
+
 
             # Otherwise proceed to standard flow
             goal_date = student["CurrentGoalSetDate"]
@@ -255,6 +354,70 @@ elif st.session_state.step == "reflect_on_goal":
             "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
         })
 
+        # --- Regenerate backgroundinfo summary from past reflections ---
+        def regenerate_background_summary_from_history(student_id):
+            history = get_goal_history_for_student(student_id)
+            warmup_texts = [
+                entry["OutcomeReflection"]
+                for entry in history
+                if entry.get("OutcomeReflection") and len(entry["OutcomeReflection"].strip()) > 5
+            ]
+            full_text = "\n".join(warmup_texts[-10:])  # Limit to last 10 entries
+
+            prompt = (
+                "Summarize the student's interests, feelings, and experiences based on these past reflections:\n\n"
+                f"{full_text.strip()}\n\nSummary:"
+            )
+
+            try:
+                response = openai_client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.5,
+                    max_tokens=60
+                )
+                return response.choices[0].message.content.strip()
+            except Exception:
+                return "Summary unavailable"
+
+        # --- After user submits reflection and before motivation check ---
+        if st.button("Submit Reflection"):
+            st.session_state.latest_reflection = reflection
+            add_goal_history_entry({
+                "StudentID": st.session_state.student_id,
+                "GoalSetDate": goal_info["set_date"],
+                "GoalText": goal_info["text"],
+                "SuccessMeasure": "[manual goal]" if goal_info["source"] == "manual" else st.session_state.student.get("CurrentSuccessMeasures", ""),
+                "OutcomeReflection": reflection,
+                "GoalAchievement": score_value,
+                "InterpretationSummary": interpretation,
+                "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
+            })
+
+            # ✅ Update BackgroundInfo from history
+            new_summary = regenerate_background_summary_from_history(st.session_state.student_id)
+            update_student_current_goal(
+                student_id=st.session_state.student_id,
+                new_goal=st.session_state.student.get("CurrentGoal", ""),
+                new_success_measures=st.session_state.student.get("CurrentSuccessMeasures", ""),
+                set_date=st.session_state.student.get("CurrentGoalSetDate", str(date.today())),
+                background_info=new_summary
+            )
+            st.session_state.background_info = new_summary
+
+            goal_history = get_goal_history_for_student(st.session_state.student_id)
+            motivation_case = get_motivation_case(goal_history, goal_info["text"], reflection, cfg)
+
+            if motivation_case:
+                st.session_state.motivation_case = motivation_case
+                st.session_state.step = "chatbot_motivation"
+            else:
+                st.session_state.step = "set_contribution_goal"
+
+            st.rerun()
+
+
+
         # ⬇️ Run motivation analysis
         goal_history = get_goal_history_for_student(st.session_state.student_id)
         motivation_case = get_motivation_case(goal_history, goal_info["text"], reflection, cfg)
@@ -295,8 +458,8 @@ elif st.session_state.step == "check_manual_goal":
 
 #  --- Chatbot motivational step---
 elif st.session_state.step == "chatbot_motivation":
-    st.header("Motivation Chat")
-
+    st.header("Reflect with an AI:")
+    st.markdown("I am designed to help you reflect on your goals. What should I keep in mind today? (If nothing, click Send.)")
     # Show chat history
     for turn in st.session_state.chat_history:
         st.markdown(f"**AI:** {turn['ai']}")
@@ -308,14 +471,14 @@ elif st.session_state.step == "chatbot_motivation":
 
         if st.button("Send"):
             # --- Build dynamic system message using context ---
-            case = st.session_state.motivation_case
+            case = st.session_state.get("motivation_case", "motivation_onboard_intro")
             prompt_instructions = get_gpt_prompt(cfg, case)
 
             background = st.session_state.student.get("BackgroundInfo", "")
-            goal = st.session_state.goal_to_reflect["text"]
+            goal = st.session_state.get("goal_to_reflect", {}).get("text", "[No goal yet]")
             reflection = st.session_state.get("latest_reflection", "")
-            user_input = user_input.strip()  # Clean up any stray whitespace
-
+            user_input = user_input.strip()
+            
             system_message = (
                 "You are a helpful, encouraging motivation coach for high school students.\n\n"
                 f"The student has shared this about themselves: {background}\n"
