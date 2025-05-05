@@ -406,6 +406,7 @@ elif st.session_state.step == "reflect_on_goal":
                 return "Summary unavailable"
 
         # --- After user submits reflection and before motivation check ---
+        # --- There are two Submit Reflection buttons, but if I remove one we get issues ugh  ---
         if st.button("Submit Reflection", key="submit_reflection2"):
             st.session_state.latest_reflection = reflection
             add_goal_history_entry({
@@ -548,11 +549,11 @@ elif st.session_state.step == "chatbot_motivation":
     print(f"[DEMO] Motivation case selected: {st.session_state.motivation_case}")
     
     st.header("Reflect with an AI:")
-    st.markdown("I am designed to help you reflect on your goals, and set new goals that help you succeed.")
     
     # Show chat history
+    # DEBUG - I can't get rid of the first "you" even though we don't input anything
     for turn in st.session_state.chat_history:
-        if st.session_state.chat_turn_count != 0:
+        if st.session_state.chat_turn_count > 1:
             st.markdown(f"**You:** {turn['user']}")
         st.markdown(f"**AI:** {turn['ai']}")
 
@@ -566,7 +567,7 @@ elif st.session_state.step == "chatbot_motivation":
         else:
             user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
 
-        st.markdown("#### Choose how long you want my response to be:")
+        st.markdown("#### I would prefer the next response to be:")
         col1, col2, col3 = st.columns(3)
 
         def handle_chat_reply(length_label):
@@ -623,10 +624,10 @@ elif st.session_state.step == "chatbot_motivation":
             st.rerun()
 
         with col1:
-            if st.button("Short"):
+            if st.button("Shorter"):
                 handle_chat_reply("short")
         with col2:
-            if st.button("Long"):
+            if st.button("Longer"):
                 handle_chat_reply("long")
 
 
