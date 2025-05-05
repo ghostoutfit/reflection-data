@@ -54,7 +54,7 @@ def get_motivation_case(goal_history, current_goal, current_reflection, cfg):
 
     recent_entries = goal_history[-3:]
 
-    if sum(1 for entry in recent_entries if entry["GoalAchievement"] in ["0", "1"]) >= low_thresh:
+    if sum(1 for entry in recent_entries if str(entry["GoalAchievement"]) in ["0", "1"]) >= low_thresh:
         return "motivation_low_follow"
 
     if sum(1 for entry in recent_entries if entry["GoalText"] == current_goal) >= repeat_thresh:
@@ -63,7 +63,7 @@ def get_motivation_case(goal_history, current_goal, current_reflection, cfg):
     if len(current_reflection.strip()) < vague_len:
         return "motivation_unclear_reflection"
 
-    if sum(1 for entry in recent_entries if entry["GoalAchievement"] in ["3", "4"]) >= strong_thresh:
+    if sum(1 for entry in recent_entries if str(entry["GoalAchievement"]) in ["3", "4"]) >= strong_thresh:
         return "motivation_strong_streak"
 
     return None
@@ -152,7 +152,7 @@ if st.session_state.step == "enter_id":
                     st.error("Student ID already exists.")
 
 # --- Demo / Test mode to try out AI conversation
-if st.session_state.get("step") != "chatbot_motivation":
+if st.session_state.get("step") == "enter_id":
     if st.button("OR Try AI Chat Demo with sample goal data"):
         st.session_state.step = "chatbot_motivation"
         st.session_state.goal_to_reflect = {"source": "demo"}  # triggers special behavior
@@ -347,8 +347,7 @@ elif st.session_state.step == "reflect_on_goal":
         success = st.session_state.student.get("CurrentSuccessMeasures", "")
         st.markdown(f"**Success on this goal looks like:** {success}")
 
-    st.markdown("How would you rate your progress toward this goal?")
-    goal_achievement = st.radio("", [
+    goal_achievement = st.radio("How would you rate your progress toward this goal?", [
         "4 – Met and exceeded",
         "3 – Met goal",
         "2 – Almost met",
@@ -515,6 +514,15 @@ elif st.session_state.step == "chatbot_motivation":
         }
         st.session_state.latest_reflection = random_entry.get("OutcomeReflection", "")
 
+        # Calculate motivation case for the demo record
+        demo_history = get_goal_history_for_student(st.session_state.student_id)
+        st.session_state.motivation_case = get_motivation_case(
+            goal_history=demo_history,
+            current_goal=random_entry["GoalText"],
+            current_reflection=random_entry["OutcomeReflection"],
+            cfg=cfg
+        )
+
         # Display the summary to the user
         nickname = student_record.get("Nickname", "[unknown]")
         recent_goal = random_entry.get("GoalText", "[no goal yet]")
@@ -522,27 +530,29 @@ elif st.session_state.step == "chatbot_motivation":
 
         st.markdown(f"**Your name is:** {nickname}")
         st.markdown(f"**Your most recent goal is:** {recent_goal}")
+        prompt_text = get_gpt_prompt(cfg, st.session_state.motivation_case)
+        abbreviated_prompt = prompt_text[:200] + "..." if len(prompt_text) > 200 else prompt_text
+        st.markdown(f"**The AI chose this prompt, based on reflection history:** `{abbreviated_prompt}`")
         st.markdown(f"**Background info from previous reflections includes:** {background}")
         st.markdown("---")
-    
-         
+             
    # Recalculate motivation case for the demo record
-    demo_history = get_goal_history_for_student(st.session_state.student_id)
-    st.session_state.motivation_case = get_motivation_case(
-        goal_history=demo_history,
-        current_goal=random_entry["GoalText"],
-        current_reflection=random_entry["OutcomeReflection"],
-        cfg=cfg
-    )
+    if goal_info.get("source") == "demo":
+        demo_history = get_goal_history_for_student(st.session_state.student_id)
+        st.session_state.motivation_case = get_motivation_case(
+            goal_history=demo_history,
+            current_goal=random_entry["GoalText"],
+            current_reflection=random_entry["OutcomeReflection"],
+            cfg=cfg
+        )
     print(f"[DEMO] Motivation case selected: {st.session_state.motivation_case}")
     
     st.header("Reflect with an AI:")
     st.markdown("I am designed to help you reflect on your goals, and set new goals that help you succeed.")
     
-
     # Show chat history
     for turn in st.session_state.chat_history:
-        if st.session_state.chat_turn_count != 1:
+        if st.session_state.chat_turn_count != 0:
             st.markdown(f"**You:** {turn['user']}")
         st.markdown(f"**AI:** {turn['ai']}")
 
