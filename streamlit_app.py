@@ -297,34 +297,43 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
                 <= get_config_value(cfg, "max_days_since_goal", 4)
             )
 
-            choose_next_step_from_goal_history(
-                student_id=st.session_state.student_id,
-                current_goal=student["CurrentGoal"],
-                current_reflection=summary_input,
-                goal_date=student["CurrentGoalSetDate"],
-                cfg=cfg,
-                goal_source="app"
-            )
-
-
-
-            # Otherwise proceed to standard flow
-            goal_date = student["CurrentGoalSetDate"]
-            recent = (
-                goal_date and
-                (date.today() - datetime.strptime(goal_date, "%Y-%m-%d").date()).days
-                <= get_config_value(cfg, "max_days_since_goal", 4)
-            )
-
-            if recent:
+            # If first-time user, jump straight to chatbot onboarding
+            if len(goal_history) == 0:
                 st.session_state.goal_to_reflect = {
-                    "text": student["CurrentGoal"],
-                    "set_date": student["CurrentGoalSetDate"],
-                    "source": "app"
+                    "text": "[No goal yet]",
+                    "set_date": str(date.today()),
+                    "source": "onboard"
                 }
-                st.session_state.step = "reflect_on_goal"
+                st.session_state.motivation_case = "motivation_onboard_intro"
+                st.session_state.step = "chatbot_motivation"
             else:
-                st.session_state.step = "check_manual_goal"
+                # Fall back to goal-based routing
+                choose_next_step_from_goal_history(
+                    student_id=st.session_state.student_id,
+                    current_goal=student["CurrentGoal"],
+                    current_reflection=summary_input,
+                    goal_date=student["CurrentGoalSetDate"],
+                    cfg=cfg,
+                    goal_source="app"
+                )
+
+                # Otherwise proceed to standard flow
+                goal_date = student["CurrentGoalSetDate"]
+                recent = (
+                    goal_date and
+                    (date.today() - datetime.strptime(goal_date, "%Y-%m-%d").date()).days
+                    <= get_config_value(cfg, "max_days_since_goal", 4)
+                )
+
+                if recent:
+                    st.session_state.goal_to_reflect = {
+                        "text": student["CurrentGoal"],
+                        "set_date": student["CurrentGoalSetDate"],
+                        "source": "app"
+                    }
+                    st.session_state.step = "reflect_on_goal"
+                else:
+                    st.session_state.step = "check_manual_goal"
 
             st.rerun()
 
@@ -487,6 +496,13 @@ elif st.session_state.step == "chatbot_motivation":
 
     goal_info = st.session_state.get("goal_to_reflect", {})
 
+    if goal_info.get("source") == "onboard":
+        st.session_state.student_id = st.session_state.get("student_id")
+        st.session_state.student = get_student_info(st.session_state.student_id)
+        st.session_state.latest_reflection = st.session_state.get("latest_reflection", "")
+        st.session_state.motivation_case = "motivation_onboard_intro"
+
+
     # Engage Demo Mode to try out AI chat    
     if goal_info.get("source") == "demo":
         # Only choose and store a random entry once
@@ -549,6 +565,9 @@ elif st.session_state.step == "chatbot_motivation":
     print(f"[DEMO] Motivation case selected: {st.session_state.motivation_case}")
     
     st.header("Reflect with an AI:")
+
+    if st.session_state.motivation_case == "motivation_onboard_intro":
+        st.markdown("##### 🤖  I'm a robot designed to help you meet your goals in this class... 🤓")
     
     # Show chat history
     # DEBUG - I can't get rid of the first "you" even though we don't input anything
@@ -567,7 +586,7 @@ elif st.session_state.step == "chatbot_motivation":
         else:
             user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
 
-        st.markdown("#### I would prefer the next response to be:")
+        st.markdown("##### Would you prefer my next response to be:")
         col1, col2, col3 = st.columns(3)
 
         def handle_chat_reply(length_label):
