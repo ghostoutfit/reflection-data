@@ -652,7 +652,7 @@ elif st.session_state.step == "chatbot_motivation":
 
 
     else:
-        st.success("Nice work thinking that through.")
+        st.success("Nice work thinking that through. If the AI just asked you a new question, think over it as you set goals in the next step. ")
 
     if st.button("Continue to Goal Setting"):
         st.session_state.step = "set_contribution_goal"
@@ -686,6 +686,8 @@ elif st.session_state.step == "set_contribution_goal":
         history = get_goal_history_for_student(st.session_state.student_id)
         if len(history) == 0:
             # Log initial goal into GoalHistory
+            from datetime import date
+            today = date.today().isoformat()  # Returns '2025-05-07' format
             add_goal_history_entry({
                 "StudentID": st.session_state.student_id,
                 "GoalSetDate": today,
