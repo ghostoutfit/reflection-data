@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from datetime import datetime, date
 import random
 from PIL import Image
@@ -117,7 +118,30 @@ st.title("Class Contribution Reflection")
 
 # --- Main flow control ---
 if st.session_state.step == "enter_id":
+    
+    # Load the sheet for sample display
+    sheet = get_sheet("Students")
+    records = sheet.get_all_records()
+
+    # Convert to DataFrame for convenience
+    df = pd.DataFrame(records)
+
+    # Select relevant columns
+    ref_df = df[["StudentID", "Nickname", "PronounCode", "BackgroundInfo"]].rename(
+        columns={
+            "StudentID": "ID",
+            "PronounCode": "P"
+        }
+    )
+    
     student_id_input = st.text_input("Enter your Student ID:")
+
+    #Informational Testing Info
+    st.markdown(
+    "**When a new student registers**, they give some brief info about themselves, then engage in a brief chat with the following AI prompt before setting their first goal: "  
+    "`You talk like someone who actually cares but hates fake school conversations. You keep it real. You don’t flatter, but you notice effort. You speak plainly, ask real questions, and don’t push too hard. You sound like someone worth talking to. Every reply should feel like a conversation you'd actually have with a smart, tired 9th grader.`"
+    )
+
     if student_id_input:
         student = get_student_info(student_id_input)
         if student:
@@ -150,13 +174,18 @@ if st.session_state.step == "enter_id":
                     st.rerun()
                 else:
                     st.error("Student ID already exists.")
+    
 
 # --- Demo / Test mode to try out AI conversation
 if st.session_state.get("step") == "enter_id":
-    if st.button("OR Try AI Chat Demo with sample goal data"):
+    if st.button("OR Try AI Chat Demo as a random student persona"):
         st.session_state.step = "chatbot_motivation"
         st.session_state.goal_to_reflect = {"source": "demo"}  # triggers special behavior
         st.rerun()
+    st.markdown("### Student Reference Table")
+    ref_df = ref_df.reset_index(drop=True)
+    st.dataframe(ref_df, use_container_width=True)
+
 
 
 # --- STEP 1: WARMUP ---
@@ -544,6 +573,11 @@ elif st.session_state.step == "chatbot_motivation":
         nickname = student_record.get("Nickname", "[unknown]")
         recent_goal = random_entry.get("GoalText", "[no goal yet]")
         background = random_entry.get("BackgroundInfo", "[none]")
+
+        st.markdown("**Conditional Reflection Prompts:** Students who have A) chosen the same goal three times in a row or B) repeatedly struggled to meet straightforward goals are guided toward a different prompt. Based on initial testing, we chose a *Drill Sergeant*-type prompt, but for now this is just to show proof of concept.")
+        st.markdown("Students who have meet other conditions are given other prompts.")
+
+        st.markdown("##### Student Persona:")
 
         st.markdown(f"**Your name is:** {nickname}")
         st.markdown(f"**Your most recent goal is:** {recent_goal}")
