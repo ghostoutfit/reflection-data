@@ -112,79 +112,129 @@ def summarize_background_response(response_text):
         st.warning("\u26a0\ufe0f There was an error with the GPT API. We'll still continue.")
         return "shared something about themselves"
 
+# These two prompts form the core "Reflection Chat" experience
+# Users choose between a "Nicer" and a "Tougher" bot for their reflection conversation.
+def build_real_one_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction):
+    return f"""
+You talk like someone who actually cares but hates fake school conversations. You keep it real.
+You don’t flatter, but you notice effort. You speak plainly, ask real questions, and don’t push too hard.
+You sound like someone worth talking to. Every reply should feel like a conversation you'd actually have with a smart, tired 9th grader.
+
+The student reflected on a goal. Here’s what they shared:
+- **Goal:** {goal}
+- **Self-assessment (0–4):** {score_value} – {interpretation}
+- **Reflection on what helped or got in the way:** "{reflection}"
+- **Background info (less important):** {background}
+
+The student scored themselves a {score_value} out of 4.
+{score_behavior_instruction}
+
+{length_pref}
+
+In all conversations, your job is to:
+- Pick up on anything real or meaningful in their reflection
+- Ask a follow-up that feels honest, curious, and grounded
+- If they’re stuck, suggest one or two low-pressure things they might try differently next time
+- Help them *think*, not perform
+- Be concise and readable. No pep talks. No fake cheer. No therapy voice.
+""".strip()
+
+
+def build_real_one_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction):
+    return f"""
+You are here to push the student to improve. You are sharp, exacting, and focused on results.
+If the student gives a vague or weak answer, call it out—briefly and clearly. Then push them to think harder.
+End each message with a direct challenge—but not just an action. Sometimes your challenge should ask: Why does this matter to you? What are you trying to prove?
+
+You are not soft. You are not friendly. You don’t offer fake encouragement. You offer pressure, precision, and questions that leave no place to hide.
+
+The student reflected on a goal. Here’s what they shared:
+- **Goal:** {goal}
+- **Self-assessment (0–4):** {score_value} – {interpretation}
+- **Reflection on what helped or got in the way:** "{reflection}"
+- **Background info (less important):** {background}
+
+The student scored themselves a {score_value} out of 4.
+{score_behavior_instruction}
+
+{length_pref}
+
+In all conversations, your job is to:
+- Pick up on anything real or meaningful in their reflection
+- Ask a follow-up that feels honest, curious, and grounded
+- If they’re stuck, suggest one or two low-pressure things they might try differently next time
+- Help them *think*, not perform
+- Be concise and readable. No pep talks. No fake cheer. No therapy voice.
+""".strip()
+
+
 # --- Start Streamlit UI ---
 st.set_page_config(page_title="Contribution Reflection", layout="centered")
 st.title("Class Contribution Reflection")
 
 # --- Main flow control ---
 if st.session_state.step == "enter_id":
-    
+
     # Load the sheet for sample display
     sheet = get_sheet("Students")
     records = sheet.get_all_records()
-
-    # Convert to DataFrame for convenience
     df = pd.DataFrame(records)
 
-    # Select relevant columns
     ref_df = df[["StudentID", "Nickname", "PronounCode", "BackgroundInfo"]].rename(
-        columns={
-            "StudentID": "ID",
-            "PronounCode": "P"
-        }
+        columns={"StudentID": "ID", "PronounCode": "P"}
     )
-    
+
+    # Instructional info for testers
+    st.markdown("""
+    ---
+    #### 👋 Welcome to the Reflection App Demo
+
+    You can:
+    - **Enter a new "Student ID" to test onboarding**
+    - Or pick an ID from the table below and reflect as that student
+    """)
+
     student_id_input = st.text_input("Enter your Student ID:")
 
-    #Informational Testing Info
-    st.markdown(
-    "**When a new student registers**, they give some brief info about themselves, then engage in a brief chat with the following AI prompt before setting their first goal: "  
-    "`You talk like someone who actually cares but hates fake school conversations. You keep it real. You don’t flatter, but you notice effort. You speak plainly, ask real questions, and don’t push too hard. You sound like someone worth talking to. Every reply should feel like a conversation you'd actually have with a smart, tired 9th grader.`"
-    )
 
-    if student_id_input:
-        student = get_student_info(student_id_input)
-        if student:
-            for key in ["goal_to_reflect", "background_info", "selected_words", "one_word_options", "current_warmup_prompt"]:
-                st.session_state.pop(key, None)
+    col1, col2 = st.columns(2)
 
-            st.session_state.student_id = student_id_input
-            st.session_state.student = student
-            st.session_state.step = "warmup"
-            st.rerun()
-        else:
-            st.warning("Student ID not found. Please register below:")
-            nickname = st.text_input("Nickname")
-            pronoun_code = st.text_input("Pronouns (e.g., she/her, he/him, they/them)")
-            chosen_tone = st.selectbox("Preferred Tone", ["Reflective", "Coach", "Challenger"])
+    with col1:
+        if st.button("Reflect as an existing student"):
+            if student_id_input.strip():
+                    student = get_student_info(student_id_input.strip())
+                    if student:
+                        st.session_state.student_id = student_id_input.strip()
+                        st.session_state.student = student
+                        st.session_state.goal_to_reflect = {
+                            "text": student.get("CurrentGoal", "[no goal set]"),
+                            "set_date": student.get("CurrentGoalSetDate", str(date.today())),
+                            "source": "demo"
+                        }
+                        st.session_state.step = "reflect_on_goal"
+                        st.rerun()
+            else:
+                st.warning("That ID doesn't exist. Pick one from the table below or onboard a new one.")
 
-            if st.button("Register Student"):
-                created = create_student_if_missing(
-                    student_id=student_id_input,
-                    nickname=nickname,
-                    pronoun_code=pronoun_code,
-                    tone=chosen_tone
-                )
-                if created:
-                    for key in ["goal_to_reflect", "background_info", "selected_words", "one_word_options", "current_warmup_prompt"]:
-                        st.session_state.pop(key, None)
-                    st.session_state.student_id = student_id_input
-                    st.session_state.student = get_student_info(student_id_input)
-                    st.session_state.step = "warmup"
-                    st.rerun()
-                else:
-                    st.error("Student ID already exists.")
-    
+    with col2:
+        if st.button("Onboard a new student"):
+            clean_id = student_id_input.strip()
+            if not clean_id:
+                st.warning("Please enter a student ID before onboarding.")
+            elif get_student_info(clean_id):
+                st.error("❌ That student ID already exists. Try an ID that's not in the table, or click *Reflect as an existing student.*")
+            else:
+                st.session_state.step = "onboard_student"
+                st.session_state.new_student_id = clean_id
 
-# --- Demo / Test mode to try out AI conversation
-if st.session_state.get("step") == "enter_id":
-    if st.button("OR Try AI Chat Demo as a random student persona"):
-        st.session_state.step = "chatbot_motivation"
-        st.session_state.goal_to_reflect = {"source": "demo"}  # triggers special behavior
-        st.rerun()
-    st.markdown("### Student Reference Table")
-    ref_df = ref_df.reset_index(drop=True)
-    st.dataframe(ref_df, use_container_width=True)
+
+    # ↓ Tester guidance and table
+    st.markdown("""
+    ---
+    #### 🔍 Student Reference Table
+    Pick any ID from this table and enter it above to try out the app as that student.
+    """)
+    st.dataframe(ref_df.reset_index(drop=True), use_container_width=True)
 
 
 
@@ -378,6 +428,46 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
 # --- STEP 2: Reflect on goal (if recent) ---
 elif st.session_state.step == "reflect_on_goal":
     goal_info = st.session_state.goal_to_reflect
+
+    # Calculate motivation case early if not already set
+    if "motivation_case" not in st.session_state:
+        goal_history = get_goal_history_for_student(st.session_state.student_id)
+        reflection = st.session_state.get("latest_reflection", "")  # fallback to blank if not submitted yet
+        motivation_case = get_motivation_case(
+            goal_history=goal_history,
+            current_goal=goal_info["text"],
+            current_reflection=reflection,
+            cfg=cfg
+        )
+        st.session_state.motivation_case = motivation_case or None
+
+
+    if goal_info.get("source") == "demo":
+        #pull summary info
+        nickname = st.session_state.student.get("Nickname", "[unknown]")
+        student = st.session_state.student
+        background = student.get("BackgroundInfo", "[none]")
+
+
+        st.markdown("*Demo Mode! This is a pre-filled student for testing purposes.*")
+        st.markdown("**Conditional Reflection Prompts:** Students who have A) chosen the same goal three times in a row or B) repeatedly struggled to meet straightforward goals are guided toward a different prompt. Based on initial testing, we chose a *Drill Sergeant*-type prompt, but for now this is just to show proof of concept.")
+        st.markdown("Students who have meet other conditions are given other prompts.")
+        
+        # Display the summary to the user
+        st.markdown("##### Student Persona:")
+        st.markdown(f"**Your name is:** {nickname}")
+        st.markdown(f"**Your most recent goal is:** {goal_info.get('text', '[no goal]')}")
+        # Choose motivation case based on goal history
+        motivation_case = st.session_state.get("motivation_case", None)
+        if motivation_case:
+            prompt_text = get_gpt_prompt(cfg, motivation_case)
+        else:
+            prompt_text = "[No prompt selected yet]"
+        abbreviated_prompt = prompt_text[:200] + "..." if len(prompt_text) > 200 else prompt_text
+        st.markdown(f"**The AI chose this prompt, based on reflection history:** `{abbreviated_prompt}`")
+        st.markdown(f"**Background info from previous reflections includes:** {background}")
+        st.markdown("---")    
+    
     st.markdown("### Reflect on Your Goal")
     st.markdown(f"**Goal:** {goal_info['text']}")
     st.markdown(f"**Set On:** {'Today' if goal_info['source'] == 'manual' else goal_info['set_date']}")
@@ -393,6 +483,7 @@ elif st.session_state.step == "reflect_on_goal":
         "0 – Didn’t attempt"
     ])
     score_value = int(goal_achievement[0])
+    st.session_state.latest_score_value = score_value
 
     summary_map = {
         4: "Met and exceeded",
@@ -472,11 +563,8 @@ elif st.session_state.step == "reflect_on_goal":
             goal_history = get_goal_history_for_student(st.session_state.student_id)
             motivation_case = get_motivation_case(goal_history, goal_info["text"], reflection, cfg)
 
-            if motivation_case:
-                st.session_state.motivation_case = motivation_case
-                st.session_state.step = "chatbot_motivation"
-            else:
-                st.session_state.step = "set_contribution_goal"
+            st.session_state.motivation_case = motivation_case or "motivation_neutral_followup"
+            st.session_state.step = "chatbot_motivation"
 
             st.rerun()
 
@@ -494,7 +582,35 @@ elif st.session_state.step == "reflect_on_goal":
 
         st.rerun()
 
+# Onboard a new student
+elif st.session_state.step == "onboard_student":
+    st.header("Register a New Student")
 
+    student_id = st.session_state.get("new_student_id", "")
+    st.markdown(f"**Student ID:** `{student_id}`")
+
+    nickname = st.text_input("Nickname")
+    pronoun_code = st.text_input("Pronouns (e.g., she/her, he/him, they/them)")
+    chosen_tone = st.selectbox("Preferred Tone", ["Reflective", "Coach", "Challenger"])
+
+    if st.button("Register"):
+        # ✅ Check if this student ID already exists
+        if get_student_info(student_id):
+            st.error("❌ That student ID already exists. Please choose a different one.")
+        else:
+            created = create_student_if_missing(
+                student_id=student_id,
+                nickname=nickname,
+                pronoun_code=pronoun_code,
+                tone=chosen_tone
+            )
+            if created:
+                st.session_state.student_id = student_id
+                st.session_state.student = get_student_info(student_id)
+                st.session_state.step = "warmup"
+                st.rerun()
+            else:
+                st.error("⚠️ Something went wrong creating the student. Please try again.")
 
 
 # --- STEP 2B: No recent goal — ask if one was set on paper today ---
@@ -506,7 +622,7 @@ elif st.session_state.step == "check_manual_goal":
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("That was my goal"):
+        if st.button("Choose This Goal"):
             st.session_state.goal_to_reflect = {
                 "text": selected_goal,
                 "set_date": str(date.today()),
@@ -524,176 +640,153 @@ elif st.session_state.step == "check_manual_goal":
 elif st.session_state.step == "chatbot_motivation":
 
     goal_info = st.session_state.get("goal_to_reflect", {})
+    student = st.session_state.student
+    background = student.get("BackgroundInfo", "[none]")
+    goal = goal_info.get("text", "[No goal]")
+    reflection = st.session_state.get("latest_reflection", "")
+    score_value = st.session_state.get("latest_score_value", 0)
+    interpretation_map = {
+        4: "Met and exceeded",
+        3: "Met goal",
+        2: "Almost met",
+        1: "Tried but didn’t succeed",
+        0: "Didn’t attempt"
+    }
+    interpretation = interpretation_map.get(score_value, "Not rated")
+    case = st.session_state.get("motivation_case", None)
 
-    if goal_info.get("source") == "onboard":
-        st.session_state.student_id = st.session_state.get("student_id")
-        st.session_state.student = get_student_info(st.session_state.student_id)
-        st.session_state.latest_reflection = st.session_state.get("latest_reflection", "")
-        st.session_state.motivation_case = "motivation_onboard_intro"
-
-
-    # Engage Demo Mode to try out AI chat    
-    if goal_info.get("source") == "demo":
-        # Only choose and store a random entry once
-        if "demo_loaded" not in st.session_state:
-            sheet = get_sheet("GoalHistory")
-            records = sheet.get_all_records()
-            import random
-            random_entry = random.choice(records)
-
-            st.session_state.random_demo_entry = random_entry  # ✅ store the row persistently
-            st.session_state.demo_loaded = True
-        else:
-            random_entry = st.session_state.random_demo_entry  # ✅ retrieve the stored row
-
-        # Set student info
-        st.session_state.student_id = str(random_entry["StudentID"])
-        student_record = get_student_info(st.session_state.student_id)
-        student_record["BackgroundInfo"] = random_entry.get("BackgroundInfo", "")
-        st.session_state.student = student_record
-
-        # Set goal and reflection info
-        st.session_state.goal_to_reflect = {
-            "text": random_entry["GoalText"],
-            "set_date": random_entry["GoalSetDate"],
-            "source": "demo"
+    def handle_chat_reply(length_label, user_input=""):
+        tone = st.session_state.get("tone_pref", "real_one")
+        length_pref_map = {
+            "short": "Respond briefly, in 2–3 short sentences.",
+            "long": "Respond with moderate detail, around 3–5 sentences.",
         }
-        st.session_state.latest_reflection = random_entry.get("OutcomeReflection", "")
+        length_pref = length_pref_map.get(length_label, "")
 
-        # Calculate motivation case for the demo record
-        demo_history = get_goal_history_for_student(st.session_state.student_id)
-        st.session_state.motivation_case = get_motivation_case(
-            goal_history=demo_history,
-            current_goal=random_entry["GoalText"],
-            current_reflection=random_entry["OutcomeReflection"],
-            cfg=cfg
-        )
-
-        # Display the summary to the user
-        nickname = student_record.get("Nickname", "[unknown]")
-        recent_goal = random_entry.get("GoalText", "[no goal yet]")
-        background = random_entry.get("BackgroundInfo", "[none]")
-
-        st.markdown("**Conditional Reflection Prompts:** Students who have A) chosen the same goal three times in a row or B) repeatedly struggled to meet straightforward goals are guided toward a different prompt. Based on initial testing, we chose a *Drill Sergeant*-type prompt, but for now this is just to show proof of concept.")
-        st.markdown("Students who have meet other conditions are given other prompts.")
-
-        st.markdown("##### Student Persona:")
-
-        st.markdown(f"**Your name is:** {nickname}")
-        st.markdown(f"**Your most recent goal is:** {recent_goal}")
-        prompt_text = get_gpt_prompt(cfg, st.session_state.motivation_case)
-        abbreviated_prompt = prompt_text[:200] + "..." if len(prompt_text) > 200 else prompt_text
-        st.markdown(f"**The AI chose this prompt, based on reflection history:** `{abbreviated_prompt}`")
-        st.markdown(f"**Background info from previous reflections includes:** {background}")
-        st.markdown("---")
-             
-   # Recalculate motivation case for the demo record
-    if goal_info.get("source") == "demo":
-        demo_history = get_goal_history_for_student(st.session_state.student_id)
-        st.session_state.motivation_case = get_motivation_case(
-            goal_history=demo_history,
-            current_goal=random_entry["GoalText"],
-            current_reflection=random_entry["OutcomeReflection"],
-            cfg=cfg
-        )
-    print(f"[DEMO] Motivation case selected: {st.session_state.motivation_case}")
-    
-    st.header("Reflect with an AI:")
-
-    if st.session_state.motivation_case == "motivation_onboard_intro":
-        st.markdown("##### 🤖  I'm a robot designed to help you meet your goals in this class... 🤓")
-    
-    # Show chat history
-    # DEBUG - I can't get rid of the first "you" even though we don't input anything
-    for turn in st.session_state.chat_history:
-        if st.session_state.chat_turn_count > 1:
-            st.markdown(f"**You:** {turn['user']}")
-        st.markdown(f"**AI:** {turn['ai']}")
-
-
-    
-    # If fewer than 3 turns, continue conversation
-    if st.session_state.chat_turn_count < 3:
-        
-        if st.session_state.chat_turn_count == 0:
-            user_input = ""
-        else:
-            user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
-
-        st.markdown("##### Would you prefer my next response to be:")
-        col1, col2, col3 = st.columns(3)
-
-        def handle_chat_reply(length_label):
-            case = st.session_state.get("motivation_case", "motivation_onboard_intro")
-            prompt_instructions = get_gpt_prompt(cfg, case)
-            background = st.session_state.student.get("BackgroundInfo", "")
-            goal = st.session_state.get("goal_to_reflect", {}).get("text", "[No goal yet]")
-            reflection = st.session_state.get("latest_reflection", "")
-            user_input_clean = user_input.strip()
-
-            # 👇 Add this line to log to the terminal
-            history = get_goal_history_for_student(st.session_state.student_id)
-            print(f"[DEBUG] Student {st.session_state.student_id} has {len(history)} goal history entries.")
-            print(f"[GPT Prompt Case] Using prompt case: {case}")
-            print(f"[Prompt Text] {prompt_instructions[:200]}...")  # optional: only show beginning for brevity
-
-            length_pref_map = {
-                "short": "Respond briefly, in 2–3 brief sentences, using simple words.",
-                "long": "Respond with moderate detail, around 2–4 sentences.",
-            }
-            length_pref = length_pref_map.get(length_label, "")
-
-            system_message = (
-                "You are a helpful, encouraging motivation coach for high school students.\n\n"
-                f"The student has shared this about themselves: {background}\n"
-                f"The goal they reflected on was: {goal}\n"
-                f"This is what they said about how it went: {reflection}\n\n"
-                f"{length_pref}\n\n"
-                f"Now continue the conversation. {prompt_instructions}"
+        score_behavior_instruction = (
+            "They scored a 0, 1, or 2. Your job is to help them find strategies to meet this goal in the future."
+            if score_value <= 2 else
+                "They scored a 3 or 4. Your job is to acknowledge their success, and find a different goal to help them grow."
             )
 
-            full_thread = [{"role": "system", "content": system_message}]
-            for turn in st.session_state.chat_history:
-                full_thread.append({"role": "assistant", "content": turn["ai"]})
+
+        # First turn: synthesize user_input
+        if st.session_state.chat_turn_count == 0:
+            user_input_clean = (
+                f"I was working on the goal: '{goal}'. "
+                f"I gave myself a score of {score_value} — {interpretation}. "
+                f"What helped or got in the way: {reflection}"
+            )
+        else:
+            user_input_clean = user_input.strip()
+
+        # Build system prompt
+        if case:
+            prompt_instructions = get_gpt_prompt(cfg, case)
+            system_message = f"""
+The student reflected on their goal. Here’s what they shared:
+
+Goal: {goal}
+Score: {score_value} – {interpretation}
+Reflection: "{reflection}"
+Background info: {background}
+
+{length_pref}
+
+{prompt_instructions}
+""".strip()
+        else:
+            if tone == "drill_sergeant":
+                system_message = build_drill_sergeant_prompt(goal, score_value, interpretation, reflection, background, length_pref)
+            else:
+                system_message = build_real_one_prompt(goal, score_value, interpretation, reflection, background, length_pref)
+
+        # Assemble GPT thread
+        full_thread = [{"role": "system", "content": system_message}]
+        for turn in st.session_state.chat_history:
+            full_thread.append({"role": "assistant", "content": turn["ai"]})
+            if "user" in turn:
                 full_thread.append({"role": "user", "content": turn["user"]})
-            full_thread.append({"role": "user", "content": user_input_clean})
+        full_thread.append({"role": "user", "content": user_input_clean})
 
-            try:
-                response = openai_client.chat.completions.create(
-                    model="gpt-4",
-                    messages=full_thread,
-                    temperature=0.7,
-                    max_tokens=200
-                )
-                reply = response.choices[0].message.content.strip()
-            except Exception:
-                reply = "⚠️ There was a problem talking to the goal-setting chatbot. Want to try again?"
+        # Get AI response
+        try:
+            response = openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=full_thread,
+                temperature=0.7,
+                max_tokens=200
+            )
+            reply = response.choices[0].message.content.strip()
+        except Exception:
+            reply = "⚠️ There was a problem talking to the goal-setting chatbot. Want to try again?"
 
+        # Store conversation
+        if st.session_state.chat_turn_count == 0:
+            st.session_state.chat_history.append({
+                "ai": reply  # no user entry on first turn
+            })
+        else:
             st.session_state.chat_history.append({
                 "user": user_input_clean,
                 "ai": reply
             })
-            st.session_state.chat_turn_count += 1
-            st.rerun()
 
-        with col1:
-            if st.button("Shorter"):
-                handle_chat_reply("short")
-        with col2:
-            if st.button("Longer"):
-                handle_chat_reply("long")
-
-
-
-    else:
-        st.success("Nice work thinking that through. If the AI just asked you a new question, think over it as you set goals in the next step. ")
-
-    if st.button("Continue to Goal Setting"):
-        st.session_state.step = "set_contribution_goal"
-        st.session_state.pop("chat_history", None)
-        st.session_state.pop("chat_turn_count", None)
+        st.session_state.chat_turn_count += 1
         st.rerun()
 
+    # --- First Turn: Tone selection only ---
+    if st.session_state.chat_turn_count == 0:
+        st.header("Reflect with an AI:")
+        st.markdown("### Choose a style for how I respond:")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("🟢 Nicer"):
+                st.session_state.tone_pref = "real_one"
+                handle_chat_reply("long")
+
+        with col2:
+            if st.button("🔴 Tougher"):
+                st.session_state.tone_pref = "drill_sergeant"
+                handle_chat_reply("long")
+
+    # --- Turns 1 and 2: Regular interaction ---
+    elif st.session_state.chat_turn_count < 3:
+        st.header("Reflect with an AI:")
+
+        # Show conversation history
+        for i, turn in enumerate(st.session_state.chat_history):
+            if i > 0 and "user" in turn:
+                st.markdown(f"**You:** {turn['user']}")
+            st.markdown(f"**AI:** {turn['ai']}")
+
+        user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
+        st.markdown("##### How do you want me to respond?")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("Shorter", key=f"short_{st.session_state.chat_turn_count}"):
+                handle_chat_reply("short", user_input)
+
+        with col2:
+            if st.button("Longer", key=f"long_{st.session_state.chat_turn_count}"):
+                handle_chat_reply("long", user_input)
+
+    # --- Turn 3: Wrap up ---
+    else:
+        # Show final conversation
+        for i, turn in enumerate(st.session_state.chat_history):
+            if i > 0 and "user" in turn:
+                st.markdown(f"**You:** {turn['user']}")
+            st.markdown(f"**AI:** {turn['ai']}")
+
+        st.success("Nice work thinking that through. If the AI just asked you a new question, keep it in mind as you set your next goal.")
+        if st.button("Continue to Goal Setting"):
+            st.session_state.step = "set_contribution_goal"
+            st.session_state.pop("chat_history", None)
+            st.session_state.pop("chat_turn_count", None)
+            st.rerun()
 
 
 # --- STEP 3: Set new goal formally ---

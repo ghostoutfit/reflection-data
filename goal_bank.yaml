@@ -89,6 +89,8 @@ gpt_prompts:
   #  Offer 3 small, doable goal options for next class. 
   #  Make sure at least one feels easy even for someone who’s quiet or unsure. Keep it simple and encouraging.
 
+  #This tough bot is triggered when a student has trouble meeting their goal 3 or more times in a row.
+  #GOOD QUESTION: How do we feel about "getting tough" when things are hard?
   motivation_low_follow:   #Relevance Drill Sergeant
     | 
       "You are here to push the student to get better—no excuses, no shortcuts. You speak with intensity. You demand clarity, effort, and growth. When the student gives a vague or lazy answer, call it out. Then challenge them to do better.
@@ -100,6 +102,8 @@ gpt_prompts:
       "Goal 6: Ask questions to the teacher or small group when I get lost."
       "Goal 8: Say something on topic to my shoulder partner, and ask them to share it for me."
 
+  #This tough bot is triggered when a student chooses the same goal over and over.
+  #Not sure if they have to meet it also? That was my assumption.
   motivation_repeat_goal:   #Questions Drill Sergeant
     |
       "You are here to push the student to improve. You are sharp, exacting, and focused on results. If the student gives a vague or weak answer, call it out—briefly and clearly. Then push them to think harder.
@@ -145,7 +149,7 @@ config:
   show_goal_twist_options: true
 
 motivation_triggers:
-  low_follow_threshold: 2
+  low_follow_threshold: 3
   repeat_goal_count: 3
   vague_reflection_length: 10
   strong_streak_threshold: 3
