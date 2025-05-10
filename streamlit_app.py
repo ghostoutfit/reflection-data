@@ -46,28 +46,28 @@ if "student" not in st.session_state and "student_id" in st.session_state:
         st.stop()
 
 # --- get motivation case from reflection history ---
-def get_motivation_case(goal_history, current_goal, current_reflection, cfg):
-    t = cfg.get("motivation_triggers", {})
-    low_thresh = t.get("low_follow_threshold", 2)
-    repeat_thresh = t.get("repeat_goal_count", 2)
-    vague_len = t.get("vague_reflection_length", 10)
-    strong_thresh = t.get("strong_streak_threshold", 3)
-
-    recent_entries = goal_history[-3:]
-
-    if sum(1 for entry in recent_entries if str(entry["GoalAchievement"]) in ["0", "1"]) >= low_thresh:
-        return "motivation_low_follow"
-
-    if sum(1 for entry in recent_entries if entry["GoalText"] == current_goal) >= repeat_thresh:
-        return "motivation_repeat_goal"
-
-    if len(current_reflection.strip()) < vague_len:
-        return "motivation_unclear_reflection"
-
-    if sum(1 for entry in recent_entries if str(entry["GoalAchievement"]) in ["3", "4"]) >= strong_thresh:
-        return "motivation_strong_streak"
-
-    return None
+#def get_motivation_case(goal_history, current_goal, current_reflection, cfg):
+#    t = cfg.get("motivation_triggers", {})
+#    low_thresh = t.get("low_follow_threshold", 2)
+#    repeat_thresh = t.get("repeat_goal_count", 2)
+#    vague_len = t.get("vague_reflection_length", 10)
+#    strong_thresh = t.get("strong_streak_threshold", 3)
+#
+#    recent_entries = goal_history[-3:]
+#
+#    if sum(1 for entry in recent_entries if str(entry["GoalAchievement"]) in ["0", "1"]) >= low_thresh:
+#        return "motivation_low_follow"
+#
+#    if sum(1 for entry in recent_entries if entry["GoalText"] == current_goal) >= repeat_thresh:
+#        return "motivation_repeat_goal"
+#
+#    if len(current_reflection.strip()) < vague_len:
+#        return "motivation_unclear_reflection"
+#
+#    if sum(1 for entry in recent_entries if str(entry["GoalAchievement"]) in ["3", "4"]) >= strong_thresh:
+#        return "motivation_strong_streak"
+#
+#    return None
 
 def choose_next_step_from_goal_history(student_id, current_goal, current_reflection, goal_date, cfg, goal_source="app"):
     history = get_goal_history_for_student(student_id)
@@ -133,14 +133,24 @@ The student scored themselves a {score_value} out of 4.
 
 In all conversations, your job is to:
 - Pick up on anything real or meaningful in their reflection
-- Ask a follow-up that feels honest, curious, and grounded
+- Ask follow-up quesrtions that feel honest, curious, and grounded
 - If they’re stuck, suggest one or two low-pressure things they might try differently next time
-- Help them *think*, not perform
 - Be concise and readable. No pep talks. No fake cheer. No therapy voice.
+
+Possible goals include: 
+    Goal 1: Every time we are asked to turn and talk, I will say one thing on topic to my partner.
+    Goal 2: Every time we talk as a group, I will contribute at least 1 idea or ask 1 question.
+    Goal 3: Raise my hand and make contributions or ask questions.
+    Goal 4: Give my ideas to someone else, then encourage others to share them out.
+    Goal 5: Ask people what they think, and use “3 before me”
+    Goal 6: Ask questions to the teacher or small group when I get lost.
+    Goal 7: Use the phrase, “I am only 20% sure…” to let people know I am taking a risk.
+    Goal 8: Say something on topic to my shoulder partner, and ask them to share it for me.
+    Goal 9: Stay engaged in on topic conversation with my group members at every opportunity.
 """.strip()
 
 
-def build_real_one_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction):
+def build_drill_sergeant_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction):
     return f"""
 You are here to push the student to improve. You are sharp, exacting, and focused on results.
 If the student gives a vague or weak answer, call it out—briefly and clearly. Then push them to think harder.
@@ -163,8 +173,18 @@ In all conversations, your job is to:
 - Pick up on anything real or meaningful in their reflection
 - Ask a follow-up that feels honest, curious, and grounded
 - If they’re stuck, suggest one or two low-pressure things they might try differently next time
-- Help them *think*, not perform
 - Be concise and readable. No pep talks. No fake cheer. No therapy voice.
+
+Possible goals include: 
+    Goal 1: Every time we are asked to turn and talk, I will say one thing on topic to my partner.
+    Goal 2: Every time we talk as a group, I will contribute at least 1 idea or ask 1 question.
+    Goal 3: Raise my hand and make contributions or ask questions.
+    Goal 4: Give my ideas to someone else, then encourage others to share them out.
+    Goal 5: Ask people what they think, and use “3 before me”
+    Goal 6: Ask questions to the teacher or small group when I get lost.
+    Goal 7: Use the phrase, “I am only 20% sure…” to let people know I am taking a risk.
+    Goal 8: Say something on topic to my shoulder partner, and ask them to share it for me.
+    Goal 9: Stay engaged in on topic conversation with my group members at every opportunity.
 """.strip()
 
 
@@ -430,16 +450,16 @@ elif st.session_state.step == "reflect_on_goal":
     goal_info = st.session_state.goal_to_reflect
 
     # Calculate motivation case early if not already set
-    if "motivation_case" not in st.session_state:
-        goal_history = get_goal_history_for_student(st.session_state.student_id)
-        reflection = st.session_state.get("latest_reflection", "")  # fallback to blank if not submitted yet
-        motivation_case = get_motivation_case(
-            goal_history=goal_history,
-            current_goal=goal_info["text"],
-            current_reflection=reflection,
-            cfg=cfg
-        )
-        st.session_state.motivation_case = motivation_case or None
+    #if "motivation_case" not in st.session_state:
+    #    goal_history = get_goal_history_for_student(st.session_state.student_id)
+    #    reflection = st.session_state.get("latest_reflection", "")  # fallback to blank if not submitted yet
+    #    motivation_case = get_motivation_case(
+    #        goal_history=goal_history,
+    #        current_goal=goal_info["text"],
+    #        current_reflection=reflection,
+    #        cfg=cfg
+    #    )
+    #    st.session_state.motivation_case = motivation_case or None
 
 
     if goal_info.get("source") == "demo":
@@ -450,23 +470,23 @@ elif st.session_state.step == "reflect_on_goal":
 
 
         st.markdown("*Demo Mode! This is a pre-filled student for testing purposes.*")
-        st.markdown("**Conditional Reflection Prompts:** Students who have A) chosen the same goal three times in a row or B) repeatedly struggled to meet straightforward goals are guided toward a different prompt. Based on initial testing, we chose a *Drill Sergeant*-type prompt, but for now this is just to show proof of concept.")
-        st.markdown("Students who have meet other conditions are given other prompts.")
+        #st.markdown("**Conditional Reflection Prompts:** Students who have A) chosen the same goal three times in a row or B) repeatedly struggled to meet straightforward goals are guided toward a different prompt. Based on initial testing, we chose a *Drill Sergeant*-type prompt, but for now this is just to show proof of concept.")
+        #st.markdown("Students who have meet other conditions are given other prompts.")
         
         # Display the summary to the user
         st.markdown("##### Student Persona:")
         st.markdown(f"**Your name is:** {nickname}")
         st.markdown(f"**Your most recent goal is:** {goal_info.get('text', '[no goal]')}")
         # Choose motivation case based on goal history
-        motivation_case = st.session_state.get("motivation_case", None)
-        if motivation_case:
-            prompt_text = get_gpt_prompt(cfg, motivation_case)
-        else:
-            prompt_text = "[No prompt selected yet]"
-        abbreviated_prompt = prompt_text[:200] + "..." if len(prompt_text) > 200 else prompt_text
-        st.markdown(f"**The AI chose this prompt, based on reflection history:** `{abbreviated_prompt}`")
-        st.markdown(f"**Background info from previous reflections includes:** {background}")
-        st.markdown("---")    
+        #motivation_case = st.session_state.get("motivation_case", None)
+        #if motivation_case:
+        #    prompt_text = get_gpt_prompt(cfg, motivation_case)
+        #else:
+        #    prompt_text = "[No prompt selected yet]"
+        #abbreviated_prompt = prompt_text[:200] + "..." if len(prompt_text) > 200 else prompt_text
+        #st.markdown(f"**The AI chose this prompt, based on reflection history:** `{abbreviated_prompt}`")
+        #st.markdown(f"**Background info from previous reflections includes:** {background}")
+        #st.markdown("---")    
     
     st.markdown("### Reflect on Your Goal")
     st.markdown(f"**Goal:** {goal_info['text']}")
@@ -495,8 +515,9 @@ elif st.session_state.step == "reflect_on_goal":
     interpretation = summary_map[score_value]
     reflection = st.text_area("What helped or got in the way?")
 
-    if st.button("Submit Reflection", key="submit_reflection1"):    # Don't know why we need two of these, but we do?
-        st.session_state.latest_reflection = reflection  # ✅ Store it for later
+    if st.button("Submit Reflection", key="submit_reflection1"):
+        st.session_state.latest_reflection = reflection
+
         add_goal_history_entry({
             "StudentID": st.session_state.student_id,
             "GoalSetDate": goal_info["set_date"],
@@ -508,7 +529,7 @@ elif st.session_state.step == "reflect_on_goal":
             "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
         })
 
-        # --- Regenerate backgroundinfo summary from past reflections ---
+        # --- Regenerate BackgroundInfo from history ---
         def regenerate_background_summary_from_history(student_id):
             history = get_goal_history_for_student(student_id)
             warmup_texts = [
@@ -534,52 +555,29 @@ elif st.session_state.step == "reflect_on_goal":
             except Exception:
                 return "Summary unavailable"
 
-        # --- After user submits reflection and before motivation check ---
-        # --- There are two Submit Reflection buttons, but if I remove one we get issues ugh  ---
-        if st.button("Submit Reflection", key="submit_reflection2"):
-            st.session_state.latest_reflection = reflection
-            add_goal_history_entry({
-                "StudentID": st.session_state.student_id,
-                "GoalSetDate": goal_info["set_date"],
-                "GoalText": goal_info["text"],
-                "SuccessMeasure": "[manual goal]" if goal_info["source"] == "manual" else st.session_state.student.get("CurrentSuccessMeasures", ""),
-                "OutcomeReflection": reflection,
-                "GoalAchievement": score_value,
-                "InterpretationSummary": interpretation,
-                "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
-            })
-
-            # ✅ Update BackgroundInfo from history
-            new_summary = regenerate_background_summary_from_history(st.session_state.student_id)
-            update_student_current_goal(
-                student_id=st.session_state.student_id,
-                new_goal=st.session_state.student.get("CurrentGoal", ""),
-                new_success_measures=st.session_state.student.get("CurrentSuccessMeasures", ""),
-                set_date=st.session_state.student.get("CurrentGoalSetDate", str(date.today())),
-                background_info=new_summary
-            )
-            st.session_state.background_info = new_summary
-
-            goal_history = get_goal_history_for_student(st.session_state.student_id)
-            motivation_case = get_motivation_case(goal_history, goal_info["text"], reflection, cfg)
-
-            st.session_state.motivation_case = motivation_case or "motivation_neutral_followup"
-            st.session_state.step = "chatbot_motivation"
-
-            st.rerun()
-
-
+        new_summary = regenerate_background_summary_from_history(st.session_state.student_id)
+        update_student_current_goal(
+            student_id=st.session_state.student_id,
+            new_goal=st.session_state.student.get("CurrentGoal", ""),
+            new_success_measures=st.session_state.student.get("CurrentSuccessMeasures", ""),
+            set_date=st.session_state.student.get("CurrentGoalSetDate", str(date.today())),
+            background_info=new_summary
+        )
+        st.session_state.background_info = new_summary
 
         # ⬇️ Run motivation analysis
-        goal_history = get_goal_history_for_student(st.session_state.student_id)
-        motivation_case = get_motivation_case(goal_history, goal_info["text"], reflection, cfg)
+        #goal_history = get_goal_history_for_student(st.session_state.student_id)
+        #motivation_case = get_motivation_case(goal_history, goal_info["text"], reflection, cfg)
 
-        if motivation_case:
-            st.session_state.motivation_case = motivation_case
-            st.session_state.step = "chatbot_motivation"
-        else:
-            st.session_state.step = "set_contribution_goal"
+        #if motivation_case:
+        #    st.session_state.motivation_case = motivation_case
+        #    st.session_state.step = "chatbot_motivation"
+        #else:
+        #    st.session_state.step = "set_contribution_goal"
+        #st.rerun()
 
+        # ➡️ Route directly to the chatbot reflection step
+        st.session_state.step = "chatbot_motivation"
         st.rerun()
 
 # Onboard a new student
@@ -653,7 +651,7 @@ elif st.session_state.step == "chatbot_motivation":
         0: "Didn’t attempt"
     }
     interpretation = interpretation_map.get(score_value, "Not rated")
-    case = st.session_state.get("motivation_case", None)
+    #case = st.session_state.get("motivation_case", None)
 
     def handle_chat_reply(length_label, user_input=""):
         tone = st.session_state.get("tone_pref", "real_one")
@@ -680,26 +678,10 @@ elif st.session_state.step == "chatbot_motivation":
         else:
             user_input_clean = user_input.strip()
 
-        # Build system prompt
-        if case:
-            prompt_instructions = get_gpt_prompt(cfg, case)
-            system_message = f"""
-The student reflected on their goal. Here’s what they shared:
-
-Goal: {goal}
-Score: {score_value} – {interpretation}
-Reflection: "{reflection}"
-Background info: {background}
-
-{length_pref}
-
-{prompt_instructions}
-""".strip()
+        if tone == "drill_sergeant":
+            system_message = build_drill_sergeant_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction)
         else:
-            if tone == "drill_sergeant":
-                system_message = build_drill_sergeant_prompt(goal, score_value, interpretation, reflection, background, length_pref)
-            else:
-                system_message = build_real_one_prompt(goal, score_value, interpretation, reflection, background, length_pref)
+            system_message = build_real_one_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction)
 
         # Assemble GPT thread
         full_thread = [{"role": "system", "content": system_message}]
@@ -751,9 +733,28 @@ Background info: {background}
                 st.session_state.tone_pref = "drill_sergeant"
                 handle_chat_reply("long")
 
+        # Allow skipping AI reflection
+        st.markdown("---")
+        if st.button("Or skip AI and set your goal now"):
+            st.session_state.step = "set_contribution_goal"
+            st.session_state.pop("chat_history", None)
+            st.session_state.pop("chat_turn_count", None)
+            st.rerun()
+
+
     # --- Turns 1 and 2: Regular interaction ---
     elif st.session_state.chat_turn_count < 3:
         st.header("Reflect with an AI:")
+
+        # Show system prompt label
+        tone = st.session_state.get("tone_pref", "real_one")
+        prompt_label = {
+            "real_one": "Real One (Nicer)",
+            "drill_sergeant": "Drill Sergeant (Tougher)"
+        }.get(tone, "Unknown Style")
+
+        st.markdown(f"<span style='color:green'><b>System Prompt:</b> {prompt_label}</span>", unsafe_allow_html=True)
+
 
         # Show conversation history
         for i, turn in enumerate(st.session_state.chat_history):
@@ -762,16 +763,23 @@ Background info: {background}
             st.markdown(f"**AI:** {turn['ai']}")
 
         user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
-        st.markdown("##### How do you want me to respond?")
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("Shorter", key=f"short_{st.session_state.chat_turn_count}"):
+            if st.button("Shorter Response", key=f"short_{st.session_state.chat_turn_count}"):
                 handle_chat_reply("short", user_input)
 
         with col2:
-            if st.button("Longer", key=f"long_{st.session_state.chat_turn_count}"):
+            if st.button("Longer Response", key=f"long_{st.session_state.chat_turn_count}"):
                 handle_chat_reply("long", user_input)
+        
+        # Allow skipping AI reflection
+        st.markdown("---")
+        if st.button("or skip to set your goal now"):
+            st.session_state.step = "set_contribution_goal"
+            st.session_state.pop("chat_history", None)
+            st.session_state.pop("chat_turn_count", None)
+            st.rerun()
 
     # --- Turn 3: Wrap up ---
     else:
