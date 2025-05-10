@@ -726,12 +726,12 @@ elif st.session_state.step == "chatbot_motivation":
         with col1:
             if st.button("🟢 Nicer"):
                 st.session_state.tone_pref = "real_one"
-                handle_chat_reply("long")
+                handle_chat_reply("short")
 
         with col2:
             if st.button("🔴 Tougher"):
                 st.session_state.tone_pref = "drill_sergeant"
-                handle_chat_reply("long")
+                handle_chat_reply("short")
 
         # Allow skipping AI reflection
         st.markdown("---")
