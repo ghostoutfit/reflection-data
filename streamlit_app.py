@@ -124,7 +124,7 @@ The student reflected on a goal. Here’s what they shared:
 - **Goal:** {goal}
 - **Self-assessment (0–4):** {score_value} – {interpretation}
 - **Reflection on what helped or got in the way:** "{reflection}"
-- **Background info (less important):** {background}
+- **Background info:** {background}
 
 The student scored themselves a {score_value} out of 4.
 {score_behavior_instruction}
@@ -135,7 +135,7 @@ In all conversations, your job is to:
 - Pick up on anything real or meaningful in their reflection
 - Ask follow-up quesrtions that feel honest, curious, and grounded
 - If they’re stuck, suggest one or two low-pressure things they might try differently next time
-- Be concise and readable. No pep talks. No fake cheer. No therapy voice.
+- Be concise and readable. No therapy voice. When fitting, try to lightly make connections to the Background Info shared along with their goal.
 
 Possible goals include: 
     Goal 1: Every time we are asked to turn and talk, I will say one thing on topic to my partner.
@@ -173,7 +173,7 @@ In all conversations, your job is to:
 - Pick up on anything real or meaningful in their reflection
 - Ask a follow-up that feels honest, curious, and grounded
 - If they’re stuck, suggest one or two low-pressure things they might try differently next time
-- Be concise and readable. No pep talks. No fake cheer. No therapy voice.
+- Be concise and readable. No therapy voice. When fitting, try to lightly make connections to the Background Info shared along with their goal.
 
 Possible goals include: 
     Goal 1: Every time we are asked to turn and talk, I will say one thing on topic to my partner.
@@ -656,8 +656,8 @@ elif st.session_state.step == "chatbot_motivation":
     def handle_chat_reply(length_label, user_input=""):
         tone = st.session_state.get("tone_pref", "real_one")
         length_pref_map = {
-            "short": "Respond briefly, in 2–3 short sentences.",
-            "long": "Respond with moderate detail, around 3–5 sentences.",
+            "short": "Respond briefly, in a few sentences of plain, middle school-level language.",
+            "long": "Respond with moderate detail in middle school-level language..",
         }
         length_pref = length_pref_map.get(length_label, "")
 
