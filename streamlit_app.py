@@ -254,21 +254,16 @@ if st.session_state.step == "enter_id":
     st.markdown("#### PERSONA REFERENCE TABLE")
     st.dataframe(ref_df.reset_index(drop=True), use_container_width=True)
 
-    # Selector below the table
-    selected_id = st.selectbox("Select a student to view full background info:", ref_df["ID"])
+    # --- Bottom: full descriptions for all students ---
+    st.markdown("### Full Persona Descriptions:")
 
-    # Extract and show full background info
-    selected_row = ref_df[ref_df["ID"] == selected_id].iloc[0]
-    nickname = selected_row["Nickname"]
-    pronouns = selected_row["P"]
-    background = selected_row["BackgroundInfo"]
-
-    # Display below selector
-    st.markdown("### Full Student Description")
-    st.markdown(f"**ID:** {selected_id}  \n"
-                f"**Nickname:** {nickname}  \n"
-                f"**BackgroundInfo:** {background}")
-
+    for _, row in ref_df.iterrows():
+        st.markdown(f"""
+    **ID:** {row['ID']}  
+    **Nickname:** {row['Nickname']}  
+    **Background Info:** {row['BackgroundInfo']}
+    """)
+        st.markdown("---")
 
 # --- STEP 1: WARMUP ---
 if st.session_state.step == "warmup" and "student_id" in st.session_state:
