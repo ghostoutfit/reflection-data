@@ -216,7 +216,7 @@ if st.session_state.step == "enter_id":
     )
 
 
-    student_id_input = st.text_input("Enter your Student ID:")
+    student_id_input = st.text_input("Enter a Student ID from the table:")
 
 
     col1, col2 = st.columns(2)
