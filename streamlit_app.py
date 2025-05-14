@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import random
+import json
 from PIL import Image
 
 from goal_bank_loader import (
@@ -16,6 +17,7 @@ from google_sheets import (
     get_student_info,
     create_student_if_missing,
     add_goal_history_entry,
+    add_chat_log_entry,
     update_student_current_goal,
     get_goal_history_for_student,
     get_sheet
@@ -204,15 +206,15 @@ if st.session_state.step == "enter_id":
         columns={"StudentID": "ID", "PronounCode": "P"}
     )
 
-    # Instructional info for testers
-    st.markdown("""
-    ---
-    #### 👋 Welcome to the Reflection App Demo
+    st.markdown(
+        "<span style='color:yellow; font-size:30px'>👋 Welcome to the Reflection App Demo 🤖</span>"
+        "<br><br>"
+        "<span style='color:yellow; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class goal-setting and reflection. We're looking for your honest feedback on a short reflection conversation with a chatbot."
+        "<br><br>"
+        "**Choose a student persona from the *PERSONA REFERENCE TABLE* below, then enter a student ID and click 'Reflect as this student'.**</em></span>",
+        unsafe_allow_html=True
+    )
 
-    You can:
-    - **Enter a new "Student ID" to test onboarding**
-    - Or pick an ID from the table below and reflect as that student
-    """)
 
     student_id_input = st.text_input("Enter your Student ID:")
 
@@ -220,7 +222,7 @@ if st.session_state.step == "enter_id":
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("Reflect as an existing student"):
+        if st.button("Reflect as this student"):
             if student_id_input.strip():
                     student = get_student_info(student_id_input.strip())
                     if student:
@@ -234,28 +236,38 @@ if st.session_state.step == "enter_id":
                         st.session_state.step = "reflect_on_goal"
                         st.rerun()
             else:
-                st.warning("That ID doesn't exist. Pick one from the table below or onboard a new one.")
+                st.warning("That ID doesn't exist. Pick one from the table below.")
 
-    with col2:
-        if st.button("Onboard a new student"):
-            clean_id = student_id_input.strip()
-            if not clean_id:
-                st.warning("Please enter a student ID before onboarding.")
-            elif get_student_info(clean_id):
-                st.error("❌ That student ID already exists. Try an ID that's not in the table, or click *Reflect as an existing student.*")
-            else:
-                st.session_state.step = "onboard_student"
-                st.session_state.new_student_id = clean_id
+    # with col2:
+    #     if st.button("Onboard a new student"):
+    #         clean_id = student_id_input.strip()
+    #         if not clean_id:
+    #             st.warning("Please enter a student ID before onboarding.")
+    #         elif get_student_info(clean_id):
+    #             st.error("❌ That student ID already exists. Try an ID that's not in the table, or click *Reflect as an existing student.*")
+    #         else:
+    #             st.session_state.step = "onboard_student"
+    #             st.session_state.new_student_id = clean_id
 
 
-    # ↓ Tester guidance and table
-    st.markdown("""
-    ---
-    #### 🔍 Student Reference Table
-    Pick any ID from this table and enter it above to try out the app as that student.
-    """)
+    # Show the full table (even if background info is truncated here)
+    st.markdown("#### PERSONA REFERENCE TABLE")
     st.dataframe(ref_df.reset_index(drop=True), use_container_width=True)
 
+    # Selector below the table
+    selected_id = st.selectbox("Select a student to view full background info:", ref_df["ID"])
+
+    # Extract and show full background info
+    selected_row = ref_df[ref_df["ID"] == selected_id].iloc[0]
+    nickname = selected_row["Nickname"]
+    pronouns = selected_row["P"]
+    background = selected_row["BackgroundInfo"]
+
+    # Display below selector
+    st.markdown("### Full Student Description")
+    st.markdown(f"**ID:** {selected_id}  \n"
+                f"**Nickname:** {nickname}  \n"
+                f"**BackgroundInfo:** {background}")
 
 
 # --- STEP 1: WARMUP ---
@@ -357,13 +369,13 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
             if not existing_info:
                 # First-time response: store raw text
                 st.session_state.background_info = summary_input
-                update_student_current_goal(
-                    student_id=st.session_state.student_id,
-                    new_goal=student.get("CurrentGoal", ""),
-                    new_success_measures=student.get("CurrentSuccessMeasures", ""),
-                    set_date=student.get("CurrentGoalSetDate", str(date.today())),
-                    background_info=summary_input
-                )
+                # update_student_current_goal(
+                #     student_id=st.session_state.student_id,
+                #     new_goal=student.get("CurrentGoal", ""),
+                #     new_success_measures=student.get("CurrentSuccessMeasures", ""),
+                #     set_date=student.get("CurrentGoalSetDate", str(date.today())),
+                #     background_info=summary_input
+                # )
             else:
                 # Pull past reflections from GoalHistory
                 history = get_goal_history_for_student(st.session_state.student_id)
@@ -373,17 +385,17 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
                 combined_input = " | ".join([existing_info] + past_reflections + [summary_input])
 
                 # Summarize with GPT
-                background_summary = summarize_background_response(combined_input)
+                # background_summary = summarize_background_response(combined_input)
 
                 # Save back to Students sheet
-                st.session_state.background_info = background_summary
-                update_student_current_goal(
-                    student_id=st.session_state.student_id,
-                    new_goal=student.get("CurrentGoal", ""),
-                    new_success_measures=student.get("CurrentSuccessMeasures", ""),
-                    set_date=student.get("CurrentGoalSetDate", str(date.today())),
-                    background_info=background_summary
-                )
+                # st.session_state.background_info = background_summary
+                # update_student_current_goal(
+                #     student_id=st.session_state.student_id,
+                #     new_goal=student.get("CurrentGoal", ""),
+                #     new_success_measures=student.get("CurrentSuccessMeasures", ""),
+                #     set_date=student.get("CurrentGoalSetDate", str(date.today())),
+                #     background_info=background_summary
+                # )
 
             # Refresh local student record for use in GPT
             st.session_state.student = get_student_info(st.session_state.student_id)
@@ -469,14 +481,20 @@ elif st.session_state.step == "reflect_on_goal":
         background = student.get("BackgroundInfo", "[none]")
 
 
-        st.markdown("*Demo Mode! This is a pre-filled student for testing purposes.*")
+        st.markdown(
+            "<span style='color:yellow; font-size:20px'><em>Demo Mode! This is an imaginary exercise for testing. "
+            "Don't overthink this first page – answer the questions briefly and go on to the AI-Reflection-Conversation</em></span>",
+            unsafe_allow_html=True
+        )
+
         #st.markdown("**Conditional Reflection Prompts:** Students who have A) chosen the same goal three times in a row or B) repeatedly struggled to meet straightforward goals are guided toward a different prompt. Based on initial testing, we chose a *Drill Sergeant*-type prompt, but for now this is just to show proof of concept.")
         #st.markdown("Students who have meet other conditions are given other prompts.")
         
         # Display the summary to the user
-        st.markdown("##### Student Persona:")
-        st.markdown(f"**Your name is:** {nickname}")
-        st.markdown(f"**Your most recent goal is:** {goal_info.get('text', '[no goal]')}")
+        st.markdown("<span style='color:yellow; font-size:24px'><strong>Imagine you are the following test persona:</strong></span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:yellow'><strong>Your name is:</strong> {nickname}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:yellow'><strong>Your most recent goal is:</strong> {goal_info.get('text', '[no goal]')}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:yellow'><strong>Some background that the system knows about you:</strong> {background}</span>", unsafe_allow_html=True)
         # Choose motivation case based on goal history
         #motivation_case = st.session_state.get("motivation_case", None)
         #if motivation_case:
@@ -488,13 +506,16 @@ elif st.session_state.step == "reflect_on_goal":
         #st.markdown(f"**Background info from previous reflections includes:** {background}")
         #st.markdown("---")    
     
-    st.markdown("### Reflect on Your Goal")
-    st.markdown(f"**Goal:** {goal_info['text']}")
-    st.markdown(f"**Set On:** {'Today' if goal_info['source'] == 'manual' else goal_info['set_date']}")
+    st.markdown("### Step 1: Pretend to reflect on a goal you set earlier in class.")
+    st.markdown(f"**This was your goal:** {goal_info['text']}")
+    # st.markdown(f"**Set On:** {'Today' if goal_info['source'] == 'manual' else goal_info['set_date']}")
     if goal_info["source"] != "manual":
         success = st.session_state.student.get("CurrentSuccessMeasures", "")
-        st.markdown(f"**Success on this goal looks like:** {success}")
-
+        st.markdown(f"**You said that success on this goal would look like:** {success}")
+    st.markdown(
+        "<span style='color:yellow'><em>(Choose any number below. This will affect your AI-Reflection Conversation.)</em></span>",
+        unsafe_allow_html=True
+    )
     goal_achievement = st.radio("How would you rate your progress toward this goal?", [
         "4 – Met and exceeded",
         "3 – Met goal",
@@ -513,21 +534,28 @@ elif st.session_state.step == "reflect_on_goal":
         0: "Didn’t attempt"
     }
     interpretation = summary_map[score_value]
+
+    st.markdown(
+        "<span style='color:yellow'><em>(For 3 or 4, use the question below to imagine what helped. For 1 or 2, imagine what got in the way.)</em></span>",
+        unsafe_allow_html=True
+    )
+
+
     reflection = st.text_area("What helped or got in the way?")
 
     if st.button("Submit Reflection", key="submit_reflection1"):
         st.session_state.latest_reflection = reflection
 
-        add_goal_history_entry({
-            "StudentID": st.session_state.student_id,
-            "GoalSetDate": goal_info["set_date"],
-            "GoalText": goal_info["text"],
-            "SuccessMeasures": "[manual goal]" if goal_info["source"] == "manual" else st.session_state.student.get("CurrentSuccessMeasures", ""),
-            "OutcomeReflection": reflection,
-            "GoalAchievement": score_value,
-            "InterpretationSummary": interpretation,
-            "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
-        })
+        # add_goal_history_entry({
+        #     "StudentID": st.session_state.student_id,
+        #     "GoalSetDate": goal_info["set_date"],
+        #     "GoalText": goal_info["text"],
+        #     "SuccessMeasures": "[manual goal]" if goal_info["source"] == "manual" else st.session_state.student.get("CurrentSuccessMeasures", ""),
+        #     "OutcomeReflection": reflection,
+        #     "GoalAchievement": score_value,
+        #     "InterpretationSummary": interpretation,
+        #     "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
+        # })
 
         # --- Regenerate BackgroundInfo from history ---
         def regenerate_background_summary_from_history(student_id):
@@ -555,15 +583,15 @@ elif st.session_state.step == "reflect_on_goal":
             except Exception:
                 return "Summary unavailable"
 
-        new_summary = regenerate_background_summary_from_history(st.session_state.student_id)
-        update_student_current_goal(
-            student_id=st.session_state.student_id,
-            new_goal=st.session_state.student.get("CurrentGoal", ""),
-            new_success_measures=st.session_state.student.get("CurrentSuccessMeasures", ""),
-            set_date=st.session_state.student.get("CurrentGoalSetDate", str(date.today())),
-            background_info=new_summary
-        )
-        st.session_state.background_info = new_summary
+        # new_summary = regenerate_background_summary_from_history(st.session_state.student_id)
+        # update_student_current_goal(
+        #     student_id=st.session_state.student_id,
+        #     new_goal=st.session_state.student.get("CurrentGoal", ""),
+        #     new_success_measures=st.session_state.student.get("CurrentSuccessMeasures", ""),
+        #     set_date=st.session_state.student.get("CurrentGoalSetDate", str(date.today())),
+        #     background_info=new_summary
+        # )
+        # st.session_state.background_info = new_summary
 
         # ⬇️ Run motivation analysis
         #goal_history = get_goal_history_for_student(st.session_state.student_id)
@@ -720,7 +748,7 @@ elif st.session_state.step == "chatbot_motivation":
     # --- First Turn: Tone selection only ---
     if st.session_state.chat_turn_count == 0:
         st.header("Reflect with an AI:")
-        st.markdown("### Choose a style for how I respond:")
+        st.markdown("### Choose a style/tone for how I respond:")
         col1, col2 = st.columns(2)
 
         with col1:
@@ -735,11 +763,11 @@ elif st.session_state.step == "chatbot_motivation":
 
         # Allow skipping AI reflection
         st.markdown("---")
-        if st.button("Or skip AI and set your goal now"):
-            st.session_state.step = "set_contribution_goal"
-            st.session_state.pop("chat_history", None)
-            st.session_state.pop("chat_turn_count", None)
-            st.rerun()
+        # if st.button("Or skip AI and set your goal now"):
+        #     st.session_state.step = "set_contribution_goal"
+        #     st.session_state.pop("chat_history", None)
+        #     st.session_state.pop("chat_turn_count", None)
+        #     st.rerun()
 
 
     # --- Turns 1 and 2: Regular interaction ---
@@ -775,11 +803,11 @@ elif st.session_state.step == "chatbot_motivation":
         
         # Allow skipping AI reflection
         st.markdown("---")
-        if st.button("or skip to set your goal now"):
-            st.session_state.step = "set_contribution_goal"
-            st.session_state.pop("chat_history", None)
-            st.session_state.pop("chat_turn_count", None)
-            st.rerun()
+        # if st.button("or skip to set your goal now"):
+        #     st.session_state.step = "set_contribution_goal"
+        #     st.session_state.pop("chat_history", None)
+        #     st.session_state.pop("chat_turn_count", None)
+        #     st.rerun()
 
     # --- Turn 3: Wrap up ---
     else:
@@ -790,58 +818,169 @@ elif st.session_state.step == "chatbot_motivation":
             st.markdown(f"**AI:** {turn['ai']}")
 
         st.success("Nice work thinking that through. If the AI just asked you a new question, keep it in mind as you set your next goal.")
-        if st.button("Continue to Goal Setting"):
-            st.session_state.step = "set_contribution_goal"
-            st.session_state.pop("chat_history", None)
-            st.session_state.pop("chat_turn_count", None)
+
+        # 🔒 Only log once
+        if "chat_log_saved" not in st.session_state:
+            st.session_state["log_timestamp"] = datetime.now().isoformat()  # ✅ store for later use
+            log_entry = {
+                "StudentID": st.session_state.student_id,
+                "Timestamp": datetime.now().isoformat(),
+                "CurrentGoal": goal,
+                "SuccessMeasures": student.get("CurrentSuccessMeasures", ""),
+                "OutcomeReflection": reflection,
+                "GoalAchievement": score_value,
+                "Reflection": reflection,
+                "Tone": st.session_state.get("tone_pref", ""),
+                "ChatHistory.json": json.dumps(st.session_state.chat_history),
+            }
+
+            add_chat_log_entry(log_entry)
+            st.session_state.chat_log_saved = True
+
+        # 🟨 Feedback context
+        st.markdown(
+            "<span style='color:yellow'><strong>This was just a sample reflection, but we still want your honest feedback.</strong><br>"
+            "Think about how the AI felt to talk to, even if the goal wasn't really yours. Give us whatever feedback you can, then you can go back and try a different style/tone or submit and finish.</strong></span>",
+            unsafe_allow_html=True
+        )
+
+
+        # 🔘 Likert 1 – Motivation
+        try_rating = st.selectbox(
+            "If this goal were really mine, the AI conversation would have helped me follow through.",
+            [
+                "5 – Strongly agree",
+                "4 – Agree",
+                "3 – Neutral",
+                "2 – Disagree",
+                "1 – Strongly disagree"
+                
+            ]
+        )
+
+        # 🔘 Likert 2 – Engagement
+        engage_rating = st.selectbox(
+            "I felt engaged by the AI conversation.",
+            [
+                "5 – Strongly agree",
+                "4 – Agree",
+                "3 – Neutral",
+                "2 – Disagree",
+                "1 – Strongly disagree"
+            ]
+        )
+
+        # --- Open-ended tone reflection ---
+        tone_pref_label = {
+            "real_one": "Nicer",
+            "drill_sergeant": "Tougher"
+        }.get(st.session_state.get("tone_pref", ""), "[Unknown Tone]")
+
+        tone_feedback = st.text_area(
+            f"You chose the {tone_pref_label} tone. Did this match what you expected? What worked or didn’t work about how the AI spoke to you?"
+        )
+
+        change_feedback = st.text_area(
+            "If you could change anything about how the AI responds, what would you change first? Why?"
+        )
+
+        # Save to session state
+        st.session_state["Tone"] = tone_feedback
+        st.session_state["Change"] = change_feedback
+
+
+        # ✅ Store in session state for later use
+        st.session_state["Try"] = try_rating[0]
+        st.session_state["Engage"] = engage_rating[0]
+
+        # ✅ Update log row with Try and Engage values
+        if st.button("Submit feedback and try again (different style/tone or student persona)"):
+            feedback_log = {
+                "StudentID": st.session_state.student_id,
+                "Timestamp": st.session_state.get("log_timestamp", datetime.now().isoformat()),  # ✅ re-use or fallback
+                "Try": st.session_state["Try"],
+                "Engage": st.session_state["Engage"],
+                "Tone": st.session_state.get("tone_pref", ""),
+                "ToneQ": st.session_state.get("Tone", ""),
+                "ChangeQ": st.session_state.get("Change", "")
+            }
+
+            add_chat_log_entry(feedback_log)
+
+            # Send back to home screen
+            for k in [
+                "step", "student_id", "student", "goal_to_reflect",
+                "chat_history", "chat_turn_count", "chat_log_saved",
+                "Try", "Engage", "Tone", "Change", "tone_pref", "log_timestamp"
+            ]:
+                st.session_state.pop(k, None)
             st.rerun()
+
+        elif st.button("Submit feedback and stop"):
+            feedback_log = {
+                "StudentID": st.session_state.student_id,
+                "Timestamp": st.session_state.get("log_timestamp", datetime.now().isoformat()),
+                "Try": st.session_state["Try"],
+                "Engage": st.session_state["Engage"],
+                "Tone": st.session_state.get("tone_pref", ""),
+                "ToneQ": st.session_state.get("Tone", ""),
+                "ChangeQ": st.session_state.get("Change", "")
+            }
+
+            add_chat_log_entry(feedback_log)
+
+            st.markdown("### ✅ Thank you for your feedback!")
+            st.stop()
+
+
+
 
 
 # --- STEP 3: Set new goal formally ---
-elif st.session_state.step == "set_contribution_goal":
-    st.header("Set a goal for next class")
+# elif st.session_state.step == "set_contribution_goal":
+#     st.header("Set a goal for next class")
 
-    img = Image.open("assets/doyoutalk.jpg")
-    st.image(img, use_container_width=True)
-    st.markdown("*Use this flowchart to choose a goal, then select it from the drop down.*")
+#     img = Image.open("assets/doyoutalk.jpg")
+#     st.image(img, use_container_width=True)
+#     st.markdown("*Use this flowchart to choose a goal, then select it from the drop down.*")
 
-    goal_options = get_goal_text_list(cfg)
-    final_goal = st.selectbox("Choose your goal:", goal_options)
-    measure = st.text_area("What will it look like when you're succeeding?")
+#     goal_options = get_goal_text_list(cfg)
+#     final_goal = st.selectbox("Choose your goal:", goal_options)
+#     measure = st.text_area("What will it look like when you're succeeding?")
 
-    if st.button("Set Goal"):
-        update_student_current_goal(
-            student_id=st.session_state.student_id,
-            new_goal=final_goal,
-            new_success_measures=measure,
-            set_date=str(date.today())
-        )
+#     if st.button("Set Goal"):
+#         # update_student_current_goal(
+#         #     student_id=st.session_state.student_id,
+#         #     new_goal=final_goal,
+#         #     new_success_measures=measure,
+#         #     set_date=str(date.today())
+#         # )
 
-        # Check if this is the first goal ever
-        history = get_goal_history_for_student(st.session_state.student_id)
-        if len(history) == 0:
-            # Log initial goal into GoalHistory
-            from datetime import date
-            today = date.today().isoformat()  # Returns '2025-05-07' format
-            add_goal_history_entry({
-                "StudentID": st.session_state.student_id,
-                "GoalSetDate": today,
-                "Goal": final_goal,
-                "SuccessMeasures": measure,
-                "OutcomeReflection": "[first goal]",
-                "GoalAchievement": "[first goal]",
-                "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
-            })
+#         # Check if this is the first goal ever
+#         history = get_goal_history_for_student(st.session_state.student_id)
+#         if len(history) == 0:
+#             # Log initial goal into GoalHistory
+#             from datetime import date
+#             today = date.today().isoformat()  # Returns '2025-05-07' format
+#             # add_goal_history_entry({
+#             #     "StudentID": st.session_state.student_id,
+#             #     "GoalSetDate": today,
+#             #     "Goal": final_goal,
+#             #     "SuccessMeasures": measure,
+#             #     "OutcomeReflection": "[first goal]",
+#             #     "GoalAchievement": "[first goal]",
+#             #     "BackgroundInfo": st.session_state.student.get("BackgroundInfo", "")
+#             # })
 
-        st.success("New goal saved.")
-        st.session_state.step = "done"
-        st.rerun()
+#         st.success("New goal saved.")
+#         st.session_state.step = "done"
+#         st.rerun()
 
-# --- STEP 4: Wrap up ---
-elif st.session_state.step == "done":
-    st.success("You're all set for today. See you next time!")
-    if st.button("Start Over"):
-        for key in ["step", "student_id", "student", "background_info",
-                    "current_warmup_prompt", "one_word_options", "selected_words"]:
-            st.session_state.pop(key, None)
-        st.rerun()
+# # --- STEP 4: Wrap up ---
+# elif st.session_state.step == "done":
+#     st.success("You're all set for today. See you next time!")
+#     if st.button("Start Over"):
+#         for key in ["step", "student_id", "student", "background_info",
+#                     "current_warmup_prompt", "one_word_options", "selected_words"]:
+#             st.session_state.pop(key, None)
+#         st.rerun()

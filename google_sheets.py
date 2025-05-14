@@ -89,3 +89,22 @@ def get_goal_history_for_student(student_id):
     sheet = get_sheet("GoalHistory")
     records = sheet.get_all_records()
     return [row for row in records if str(row["StudentID"]).strip() == str(student_id).strip()]
+
+def add_chat_log_entry(entry: dict):
+    sheet = get_sheet("Chats")
+    sheet.append_row([
+        entry.get("StudentID", ""),
+        entry.get("Timestamp", ""),
+        entry.get("CurrentGoal", ""),
+        entry.get("SuccessMeasures", ""),
+        entry.get("OutcomeReflection", ""),
+        entry.get("GoalAchievement", ""),
+        entry.get("Reflection", ""),
+        entry.get("Tone", ""),
+        entry.get("ChatHistory.json", ""),
+        entry.get("Try", ""),
+        entry.get("Engage", ""),
+        entry.get("ToneQ", ""),              # student's response about tone
+        entry.get("ChangeQ", "")             # student's suggestion for improvement
+    ])
+
