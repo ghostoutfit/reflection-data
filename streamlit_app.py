@@ -207,9 +207,9 @@ if st.session_state.step == "enter_id":
     )
 
     st.markdown(
-        "<span style='color:yellow; font-size:30px'>👋 Welcome to the Reflection App Demo 🤖</span>"
+        "<span style='color:goldenrod; font-size:30px'>Welcome to the Reflection App Demo</span>"
         "<br><br>"
-        "<span style='color:yellow; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class goal-setting and reflection. We're looking for your honest feedback on a short reflection conversation with a chatbot."
+        "<span style='color:goldenrod; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class goal-setting and reflection. We're looking for your honest feedback on a short reflection conversation with a chatbot."
         "<br><br>"
         "**Choose a student persona from the *PERSONA REFERENCE TABLE* below, then enter a student ID and click 'Reflect as this student'.**</em></span>",
         unsafe_allow_html=True
@@ -477,7 +477,7 @@ elif st.session_state.step == "reflect_on_goal":
 
 
         st.markdown(
-            "<span style='color:yellow; font-size:20px'><em>Demo Mode! This is an imaginary exercise for testing. "
+            "<span style='color:goldenrod; font-size:20px'><em>Demo Mode! This is an imaginary exercise for testing. "
             "Don't overthink this first page – answer the questions briefly and go on to the AI-Reflection-Conversation</em></span>",
             unsafe_allow_html=True
         )
@@ -486,10 +486,10 @@ elif st.session_state.step == "reflect_on_goal":
         #st.markdown("Students who have meet other conditions are given other prompts.")
         
         # Display the summary to the user
-        st.markdown("<span style='color:yellow; font-size:24px'><strong>Imagine you are the following test persona:</strong></span>", unsafe_allow_html=True)
-        st.markdown(f"<span style='color:yellow'><strong>Your name is:</strong> {nickname}</span>", unsafe_allow_html=True)
-        st.markdown(f"<span style='color:yellow'><strong>Your most recent goal is:</strong> {goal_info.get('text', '[no goal]')}</span>", unsafe_allow_html=True)
-        st.markdown(f"<span style='color:yellow'><strong>Some background that the system knows about you:</strong> {background}</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color:goldenrod; font-size:24px'><strong>Imagine you are the following test persona:</strong></span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:goldenrod'><strong>Your name is:</strong> {nickname}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:goldenrod'><strong>Your most recent goal is:</strong> {goal_info.get('text', '[no goal]')}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:goldenrod'><strong>Some background that the system knows about you:</strong> {background}</span>", unsafe_allow_html=True)
         # Choose motivation case based on goal history
         #motivation_case = st.session_state.get("motivation_case", None)
         #if motivation_case:
@@ -508,7 +508,7 @@ elif st.session_state.step == "reflect_on_goal":
         success = st.session_state.student.get("CurrentSuccessMeasures", "")
         st.markdown(f"**You said that success on this goal would look like:** {success}")
     st.markdown(
-        "<span style='color:yellow'><em>(Choose any number below. This will affect your AI-Reflection Conversation.)</em></span>",
+        "<span style='color:goldenrod'><em>(Choose any number below. This will affect your AI-Reflection Conversation.)</em></span>",
         unsafe_allow_html=True
     )
     goal_achievement = st.radio("How would you rate your progress toward this goal?", [
@@ -531,7 +531,7 @@ elif st.session_state.step == "reflect_on_goal":
     interpretation = summary_map[score_value]
 
     st.markdown(
-        "<span style='color:yellow'><em>(For 3 or 4, use the question below to imagine what helped. For 1 or 2, imagine what got in the way.)</em></span>",
+        "<span style='color:goldenrod'><em>(For 3 or 4, use the question below to imagine what helped. For 1 or 2, imagine what got in the way.)</em></span>",
         unsafe_allow_html=True
     )
 
@@ -834,7 +834,7 @@ elif st.session_state.step == "chatbot_motivation":
 
         # 🟨 Feedback context
         st.markdown(
-            "<span style='color:yellow'><strong>This was just a sample reflection, but we still want your honest feedback.</strong><br>"
+            "<span style='color:goldenrod'><strong>This was just a sample reflection, but we still want your honest feedback.</strong><br>"
             "Think about how the AI felt to talk to, even if the goal wasn't really yours. Give us whatever feedback you can, then you can go back and try a different style/tone or submit and finish.</strong></span>",
             unsafe_allow_html=True
         )
