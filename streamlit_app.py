@@ -207,9 +207,9 @@ if st.session_state.step == "enter_id":
     )
 
     st.markdown(
-        "<span style='color:goldenrod; font-size:30px'>Welcome to the Reflection App Demo</span>"
+        "<span style='color:#DFAB2D; font-size:30px'>Welcome to the Reflection App Demo</span>"
         "<br><br>"
-        "<span style='color:goldenrod; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class goal-setting and reflection. We're looking for your honest feedback on a short reflection conversation with a chatbot."
+        "<span style='color:#DFAB2D; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class goal-setting and reflection. We're looking for your honest feedback on a short reflection conversation with a chatbot."
         "<br><br>"
         "**Choose a student persona from the *PERSONA REFERENCE TABLE* below, then enter a student ID and click 'Reflect as this student'.**</em></span>",
         unsafe_allow_html=True
