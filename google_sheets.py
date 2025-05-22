@@ -102,6 +102,7 @@ def add_chat_log_entry(entry: dict):
         entry.get("Reflection", ""),
         entry.get("Tone", ""),
         entry.get("ChatHistory.json", ""),
+        entry.get("UserType", ""),
         entry.get("Try", ""),
         entry.get("Engage", ""),
         entry.get("ToneQ", ""),              # student's response about tone

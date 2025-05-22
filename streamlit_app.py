@@ -785,7 +785,7 @@ elif st.session_state.step == "chatbot_motivation":
                 st.markdown(f"**You:** {turn['user']}")
             st.markdown(f"**AI:** {turn['ai']}")
 
-        user_input = st.text_input("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
+        user_input = st.text_area("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
         col1, col2 = st.columns(2)
 
         with col1:
@@ -840,6 +840,24 @@ elif st.session_state.step == "chatbot_motivation":
         )
 
 
+        user_type_options = [
+                "Student",
+                "Teacher",
+                "Developer",
+                "Other"
+            ]
+
+        user_choice = st.selectbox(
+            "Choose a word that best describes you:",
+            user_type_options
+        )
+
+        if user_choice == "Other":
+            user_type = st.text_input("Type one or two words that describe you:")
+        else:
+            user_type = user_choice
+
+
         # 🔘 Likert 1 – Motivation
         try_rating = st.selectbox(
             "If this goal were really mine, the AI conversation would have helped me follow through.",
@@ -887,12 +905,14 @@ elif st.session_state.step == "chatbot_motivation":
         # ✅ Store in session state for later use
         st.session_state["Try"] = try_rating[0]
         st.session_state["Engage"] = engage_rating[0]
+        st.session_state["UserType"] = user_type
 
         # ✅ Update log row with Try and Engage values
         if st.button("Submit feedback and try again (different style/tone or student persona)"):
             feedback_log = {
                 "StudentID": st.session_state.student_id,
                 "Timestamp": st.session_state.get("log_timestamp", datetime.now().isoformat()),  # ✅ re-use or fallback
+                "UserType": st.session_state["UserType"],
                 "Try": st.session_state["Try"],
                 "Engage": st.session_state["Engage"],
                 "Tone": st.session_state.get("tone_pref", ""),
@@ -906,7 +926,7 @@ elif st.session_state.step == "chatbot_motivation":
             for k in [
                 "step", "student_id", "student", "goal_to_reflect",
                 "chat_history", "chat_turn_count", "chat_log_saved",
-                "Try", "Engage", "Tone", "Change", "tone_pref", "log_timestamp"
+                "Try", "Engage", "UserType", "Tone", "Change", "tone_pref", "log_timestamp"
             ]:
                 st.session_state.pop(k, None)
             st.rerun()
@@ -915,6 +935,7 @@ elif st.session_state.step == "chatbot_motivation":
             feedback_log = {
                 "StudentID": st.session_state.student_id,
                 "Timestamp": st.session_state.get("log_timestamp", datetime.now().isoformat()),
+                "UserType": st.session_state["UserType"],               
                 "Try": st.session_state["Try"],
                 "Engage": st.session_state["Engage"],
                 "Tone": st.session_state.get("tone_pref", ""),
