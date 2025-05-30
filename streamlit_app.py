@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, date
 import random
 import json
+import re
 from PIL import Image
 
 from goal_bank_loader import (
@@ -71,6 +72,29 @@ if "student" not in st.session_state and "student_id" in st.session_state:
 #
 #    return None
 
+import re
+
+def extract_response_options(raw_text):
+    pattern = r"Option (\d+):\s*Statement:(.*?)\s*Question:(.*?)(?=(Option \d+:|Best option:|Final response:|$))"
+    matches = re.findall(pattern, raw_text, re.DOTALL | re.IGNORECASE)
+
+    options = []
+    for match in matches:
+        option_number = int(match[0])
+        statement = match[1].strip()
+        question = match[2].strip()
+        options.append({
+            "option": option_number,
+            "statement": statement,
+            "question": question
+        })
+    return options
+
+def extract_final_response(raw_text):
+    match = re.search(r"(?i)final response\s*:\s*(.*)", raw_text, re.DOTALL)
+    return match.group(1).strip() if match else raw_text
+
+
 def choose_next_step_from_goal_history(student_id, current_goal, current_reflection, goal_date, cfg, goal_source="app"):
     history = get_goal_history_for_student(student_id)
     print(f"[DEBUG step routing] Student {student_id} has {len(history)} goal history entries.")
@@ -107,7 +131,7 @@ def summarize_background_response(response_text):
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
-            max_tokens=50
+            max_tokens=500
         )
         return response.choices[0].message.content.strip()
     except Exception:
@@ -116,49 +140,48 @@ def summarize_background_response(response_text):
 
 # These two prompts form the core "Reflection Chat" experience
 # Users choose between a "Nicer" and a "Tougher" bot for their reflection conversation.
+# Removed a length preference function to focus on one statement and one question.
 def build_real_one_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction):
     return f"""
 You talk like someone who actually cares but hates fake school conversations. You keep it real.
 You don’t flatter, but you notice effort. You speak plainly, ask real questions, and don’t push too hard.
-You sound like someone worth talking to. Every reply should feel like a conversation you'd actually have with a smart, tired 9th grader.
+You sound like someone worth talking to. Every reply should feel like something you'd hear from a smart, tired 9th grader.
 
 The student reflected on a goal. Here’s what they shared:
-- **Goal:** {goal}
-- **Self-assessment (0–4):** {score_value} – {interpretation}
-- **Reflection on what helped or got in the way:** "{reflection}"
-- **Background info:** {background}
+- Goal: {goal}
+- Self-assessment (0–4): {score_value} – {interpretation}
+- Reflection on what helped or got in the way: "{reflection}"
+- Background info: {background}
 
 The student scored themselves a {score_value} out of 4.
 {score_behavior_instruction}
 
-{length_pref}
+Generate exactly 3 response options. Each should include:
+- A short, plainspoken **statement** that shows you heard the student
+- A grounded, helpful **question** to support reflection or growth
 
-In all conversations, your job is to:
-- Pick up on anything real or meaningful in their reflection
-- Ask follow-up quesrtions that feel honest, curious, and grounded
-- If they’re stuck, suggest one or two low-pressure things they might try differently next time
-- Be concise and readable. No therapy voice. When fitting, try to lightly make connections to the Background Info shared along with their goal.
+Use this exact format:
 
-Possible goals include: 
-    Goal 1: Every time we are asked to turn and talk, I will say one thing on topic to my partner.
-    Goal 2: Every time we talk as a group, I will contribute at least 1 idea or ask 1 question.
-    Goal 3: Raise my hand and make contributions or ask questions.
-    Goal 4: Give my ideas to someone else, then encourage others to share them out.
-    Goal 5: Ask people what they think, and use “3 before me”
-    Goal 6: Ask questions to the teacher or small group when I get lost.
-    Goal 7: Use the phrase, “I am only 20% sure…” to let people know I am taking a risk.
-    Goal 8: Say something on topic to my shoulder partner, and ask them to share it for me.
-    Goal 9: Stay engaged in on topic conversation with my group members at every opportunity.
+Option 1: ...
+
+Option 2: ...
+
+Option 3: ...
+
+Then briefly evaluate the three responses. Decide which one is the most motivating, and specifically helpful to the student.
+
+Finally, repeat **only the best option** using this format:
+
+Final response: ...
+
 """.strip()
+
 
 
 def build_drill_sergeant_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction):
     return f"""
 You are here to push the student to improve. You are sharp, exacting, and focused on results.
-If the student gives a vague or weak answer, call it out—briefly and clearly. Then push them to think harder.
-End each message with a direct challenge—but not just an action. Sometimes your challenge should ask: Why does this matter to you? What are you trying to prove?
-
-You are not soft. You are not friendly. You don’t offer fake encouragement. You offer pressure, precision, and questions that leave no place to hide.
+If the student gives a vague or weak answer, call it out—briefly and clearly. Then push them to think harder. You are not soft. You are not friendly. You don’t offer fake encouragement. You offer pressure, precision, and questions that leave no place to hide.
 
 The student reflected on a goal. Here’s what they shared:
 - **Goal:** {goal}
@@ -169,24 +192,24 @@ The student reflected on a goal. Here’s what they shared:
 The student scored themselves a {score_value} out of 4.
 {score_behavior_instruction}
 
-{length_pref}
+Generate exactly 3 response options. Each should include:
+- A short, plainspoken **statement** that shows you heard the student
+- A grounded, helpful **question** to support reflection or growth
 
-In all conversations, your job is to:
-- Pick up on anything real or meaningful in their reflection
-- Ask a follow-up that feels honest, curious, and grounded
-- If they’re stuck, suggest one or two low-pressure things they might try differently next time
-- Be concise and readable. No therapy voice. When fitting, try to lightly make connections to the Background Info shared along with their goal.
+Use this exact format:
 
-Possible goals include: 
-    Goal 1: Every time we are asked to turn and talk, I will say one thing on topic to my partner.
-    Goal 2: Every time we talk as a group, I will contribute at least 1 idea or ask 1 question.
-    Goal 3: Raise my hand and make contributions or ask questions.
-    Goal 4: Give my ideas to someone else, then encourage others to share them out.
-    Goal 5: Ask people what they think, and use “3 before me”
-    Goal 6: Ask questions to the teacher or small group when I get lost.
-    Goal 7: Use the phrase, “I am only 20% sure…” to let people know I am taking a risk.
-    Goal 8: Say something on topic to my shoulder partner, and ask them to share it for me.
-    Goal 9: Stay engaged in on topic conversation with my group members at every opportunity.
+Option 1: ...
+
+Option 2: ...
+
+Option 3: ...
+
+Then briefly evaluate the three responses. Decide which one is the most motivating, and specifically helpful to the student.
+
+Finally, repeat **only the best option** using this format:
+
+Final response: ...
+
 """.strip()
 
 
@@ -572,7 +595,7 @@ elif st.session_state.step == "reflect_on_goal":
                     model="gpt-4",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.5,
-                    max_tokens=60
+                    max_tokens=200
                 )
                 return response.choices[0].message.content.strip()
             except Exception:
@@ -701,6 +724,8 @@ elif st.session_state.step == "chatbot_motivation":
         else:
             user_input_clean = user_input.strip()
 
+
+
         if tone == "drill_sergeant":
             system_message = build_drill_sergeant_prompt(goal, score_value, interpretation, reflection, background, length_pref, score_behavior_instruction)
         else:
@@ -720,25 +745,49 @@ elif st.session_state.step == "chatbot_motivation":
                 model="gpt-4",
                 messages=full_thread,
                 temperature=0.7,
-                max_tokens=200
+                max_tokens=500
             )
-            reply = response.choices[0].message.content.strip()
-        except Exception:
-            reply = "⚠️ There was a problem talking to the goal-setting chatbot. Want to try again?"
 
-        # Store conversation
+            # Full reply text
+            reply = response.choices[0].message.content.strip()
+
+            # Token usage
+            usage = response.usage
+            print(f"[GPT TOKEN USAGE] Prompt: {usage.prompt_tokens}, Completion: {usage.completion_tokens}, Total: {usage.total_tokens}")
+
+            # Extract all three options
+            gpt_options = extract_response_options(reply)
+            st.session_state["gpt_options"] = gpt_options
+            st.session_state["full_gpt_output"] = reply
+
+            print("\n[GPT GENERATED OPTIONS]")
+            print (reply)
+
+            # Extract only final displayed response
+            final_response = extract_final_response(reply)
+            st.session_state["gpt_final_response"] = final_response
+
+        except Exception as e:
+            print(f"[GPT ERROR] {e}")
+            final_response = "⚠️ There was a problem talking to the goal-setting chatbot. Want to try again?"
+
+
+        # Store conversation using only final response
         if st.session_state.chat_turn_count == 0:
             st.session_state.chat_history.append({
-                "ai": reply  # no user entry on first turn
+                "ai": final_response
             })
         else:
             st.session_state.chat_history.append({
                 "user": user_input_clean,
-                "ai": reply
+                "ai": final_response
             })
+
 
         st.session_state.chat_turn_count += 1
         st.rerun()
+
+
 
     # --- First Turn: Tone selection only ---
     if st.session_state.chat_turn_count == 0:
@@ -767,7 +816,7 @@ elif st.session_state.step == "chatbot_motivation":
 
     # --- Turns 1 and 2: Regular interaction ---
     elif st.session_state.chat_turn_count < 3:
-        st.header("Reflect with an AI:")
+        st.header("Chat with your AI Strategist:")
 
         # Show system prompt label
         tone = st.session_state.get("tone_pref", "real_one")
@@ -786,16 +835,11 @@ elif st.session_state.step == "chatbot_motivation":
             st.markdown(f"**AI:** {turn['ai']}")
 
         user_input = st.text_area("Your reply:", key=f"chat_input_{st.session_state.chat_turn_count}")
-        col1, col2 = st.columns(2)
 
-        with col1:
-            if st.button("Shorter Response", key=f"short_{st.session_state.chat_turn_count}"):
-                handle_chat_reply("short", user_input)
+        if st.button("Submit Response", key=f"short_{st.session_state.chat_turn_count}"):
+            handle_chat_reply("short", user_input)
 
-        with col2:
-            if st.button("Longer Response", key=f"long_{st.session_state.chat_turn_count}"):
-                handle_chat_reply("long", user_input)
-        
+ 
         # Allow skipping AI reflection
         st.markdown("---")
         # if st.button("or skip to set your goal now"):
