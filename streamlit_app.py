@@ -232,9 +232,9 @@ if st.session_state.step == "enter_id":
     st.markdown(
         "<span style='color:#DFB743; font-size:30px'>Welcome to the Classroom Strategist Demo</span>"
         "<br><br>"
-        "<span style='color:#DFB743; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class strategizing around goal-setting. We're looking for your honest feedback on a short conversation with a Strategist chatbot, either NICER or TOUGHER in tone."
+        "<span style='color:#DFB743; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class strategizing around goal-setting. We're looking for your honest feedback on a short conversation with the strategist chatbot, either NICER or TOUGHER in tone."
         "<br><br>"
-        "**Choose a student persona from the *PERSONA REFERENCE TABLE* below, then enter a student ID and click 'Reflect as this student'.**</em></span>",
+        "**Choose a student persona from the *PERSONA REFERENCE TABLE* below, then enter a student ID and click 'Chat as this student'.**</em></span>",
         unsafe_allow_html=True
     )
 
@@ -245,7 +245,7 @@ if st.session_state.step == "enter_id":
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("Reflect as this student"):
+        if st.button("Chat as this student"):
             if student_id_input.strip():
                     student = get_student_info(student_id_input.strip())
                     if student:
@@ -332,10 +332,10 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
     
     if len(goal_history) == 0:
         st.markdown(f"We'll start every strategy session with a quick check-in. "
-                    "This helps provide background so I can better help you reflect.")
+                    "This helps provide background so I can better help you strategize.")
     else:
         st.markdown(f"👋 Hey **{nickname}**, we'll start today's strategy session with a quick check-in. "
-                    "This helps provide background so I can better help you reflect.")
+                    "This helps provide background so I can better help you strategize.")
     st.subheader("Warm Up / Check-In")
 
     if "current_warmup_prompt" not in st.session_state:
@@ -524,7 +524,7 @@ elif st.session_state.step == "reflect_on_goal":
         #st.markdown(f"**Background info from previous reflections includes:** {background}")
         #st.markdown("---")    
     
-    st.markdown("### Step 1: Pretend to reflect on a goal you set earlier in class.")
+    st.markdown("### Step 1: Pretend to strategize about a goal you set earlier in class.")
     st.markdown(f"**This was your goal:** {goal_info['text']}")
     # st.markdown(f"**Set On:** {'Today' if goal_info['source'] == 'manual' else goal_info['set_date']}")
     if goal_info["source"] != "manual":
