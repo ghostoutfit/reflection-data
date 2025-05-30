@@ -214,8 +214,8 @@ Final response: ...
 
 
 # --- Start Streamlit UI ---
-st.set_page_config(page_title="Contribution Reflection", layout="centered")
-st.title("Class Contribution Reflection")
+st.set_page_config(page_title="Classroom Strategist", layout="centered")
+st.title("Classroom Strategist")
 
 # --- Main flow control ---
 if st.session_state.step == "enter_id":
@@ -230,9 +230,9 @@ if st.session_state.step == "enter_id":
     )
 
     st.markdown(
-        "<span style='color:#DFB743; font-size:30px'>Welcome to the Reflection App Demo</span>"
+        "<span style='color:#DFB743; font-size:30px'>Welcome to the Classroom Strategist Demo</span>"
         "<br><br>"
-        "<span style='color:#DFB743; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class goal-setting and reflection. We're looking for your honest feedback on a short reflection conversation with a chatbot."
+        "<span style='color:#DFB743; font-size:16px'><em>This is an early draft of an app designed to use AI chatbot conversations for in-class strategizing around goal-setting. We're looking for your honest feedback on a short conversation with a Strategist chatbot, either NICER or TOUGHER in tone."
         "<br><br>"
         "**Choose a student persona from the *PERSONA REFERENCE TABLE* below, then enter a student ID and click 'Reflect as this student'.**</em></span>",
         unsafe_allow_html=True
@@ -299,7 +299,7 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
         st.header(f"Hi {nickname}, I’d like to get to know you a bit.")
 
         st.markdown(
-            "🧠 *It’ll be easier to help make your reflections meaningful if I know something about what you care about.*"
+            "🧠 *It’ll be easier to help make our strategies meaningful if I know something about what you care about.*"
         )
         bio_input = st.text_area("What do you want me to know about you?")
 
@@ -331,10 +331,10 @@ if st.session_state.step == "warmup" and "student_id" in st.session_state:
     
     
     if len(goal_history) == 0:
-        st.markdown(f"We'll start every reflection with a quick check-in. "
+        st.markdown(f"We'll start every strategy session with a quick check-in. "
                     "This helps provide background so I can better help you reflect.")
     else:
-        st.markdown(f"👋 Hey **{nickname}**, we'll start today's reflection with a quick check-in. "
+        st.markdown(f"👋 Hey **{nickname}**, we'll start today's strategy session with a quick check-in. "
                     "This helps provide background so I can better help you reflect.")
     st.subheader("Warm Up / Check-In")
 
@@ -501,7 +501,7 @@ elif st.session_state.step == "reflect_on_goal":
 
         st.markdown(
             "<span style='color:#DFB743; font-size:20px'><em>Demo Mode! This is an imaginary exercise for testing. "
-            "Don't overthink this first page – answer the questions briefly and go on to the AI-Reflection-Conversation</em></span>",
+            "Don't overthink this first page – answer the questions briefly and go on to the AI-Strategist-Conversation</em></span>",
             unsafe_allow_html=True
         )
 
@@ -531,7 +531,7 @@ elif st.session_state.step == "reflect_on_goal":
         success = st.session_state.student.get("CurrentSuccessMeasures", "")
         st.markdown(f"**You said that success on this goal would look like:** {success}")
     st.markdown(
-        "<span style='color:#DFB743'><em>(Choose any number below. This will affect your AI-Reflection Conversation.)</em></span>",
+        "<span style='color:#DFB743'><em>(Choose any number below. This will affect the strategies you focus on.)</em></span>",
         unsafe_allow_html=True
     )
     goal_achievement = st.radio("How would you rate your progress toward this goal?", [
@@ -561,7 +561,7 @@ elif st.session_state.step == "reflect_on_goal":
 
     reflection = st.text_area("What helped or got in the way?")
 
-    if st.button("Submit Reflection", key="submit_reflection1"):
+    if st.button("Submit Response", key="submit_reflection1"):
         st.session_state.latest_reflection = reflection
 
         # add_goal_history_entry({
